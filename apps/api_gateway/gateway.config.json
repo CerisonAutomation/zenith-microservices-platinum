@@ -1,0 +1,32 @@
+{
+  "services": {
+    "auth": {
+      "url": "http://localhost:3001",
+      "prefix": "/api/auth",
+      "timeout": 5000
+    },
+    "payment": {
+      "url": "http://localhost:3002",
+      "prefix": "/api/payment",
+      "timeout": 10000
+    },
+    "i18n": {
+      "url": "http://localhost:3003",
+      "prefix": "/api/i18n",
+      "timeout": 3000
+    },
+    "data": {
+      "url": "http://localhost:3004",
+      "prefix": "/api/data",
+      "timeout": 5000
+    }
+  },
+  "cors": {
+    "origins": ["http://localhost:3000"],
+    "credentials": true
+  },
+  "rateLimit": {
+    "windowMs": 900000,
+    "max": 100
+  }
+}

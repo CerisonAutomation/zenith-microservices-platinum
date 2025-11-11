@@ -1,0 +1,115 @@
+# Dependencies
+node_modules/
+**/node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.pytest_cache/
+.coverage
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Database
+data/mysql/
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+.temp/
+tmp/
+*.tmp
+.cache/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Secrets
+config/secrets/
+*.pem
+*.key
+!nginx/ssl/.gitkeep
+
+# Composer
+composer.phar
+vendor/
+
+# Service mesh & Infrastructure runtime
+infra/mesh/istio-*.yaml
+!infra/mesh/istio-config.yaml
+!infra/mesh/virtual-service.yaml
+!infra/mesh/destination-rule.yaml
+
+# Monitoring data
+infra/monitoring/prometheus/data/
+infra/monitoring/grafana/data/
+
+# Event broker data
+infra/event-broker/data/
+
+# Audit reports (optional - remove if you want to track these)
+audit_reports_*/

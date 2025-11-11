@@ -1,0 +1,149 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: zenith-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: zenith-tls
+    hosts:
+    - "*"
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: zenith-api
+  namespace: default
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - zenith-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api/v1/user"
+    route:
+    - destination:
+        host: user-service
+        port:
+          number: 4001
+  - match:
+    - uri:
+        prefix: "/api/v1/booking"
+    route:
+    - destination:
+        host: booking-service
+        port:
+          number: 4000
+  - match:
+    - uri:
+        prefix: "/api/v1/messaging"
+    route:
+    - destination:
+        host: messaging-service
+        port:
+          number: 5000
+  - match:
+    - uri:
+        prefix: "/api/v1/payment"
+    route:
+    - destination:
+        host: payment-service
+        port:
+          number: 6000
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: frontend
+        port:
+          number: 3000
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: zenith-services
+  namespace: default
+spec:
+  host: "*.default.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 10
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 1s
+      baseEjectionTime: 30s
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: default
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-frontend
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        notRequestPrincipals: ["*"]
+
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: zenith-telemetry
+  namespace: default
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    - match:
+        metric: REQUEST_COUNT
+        mode: CLIENT_AND_SERVER
+      tagOverrides:
+        request_operation:
+          value: "istio_operationId"
+  accessLogging:
+  - providers:
+    - name: envoy
+    disabled: false

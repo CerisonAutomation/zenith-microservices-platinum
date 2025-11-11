@@ -1,0 +1,544 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zenith-prod
+  labels:
+    name: zenith-prod
+    environment: production
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zenith-config
+  namespace: zenith-prod
+data:
+  POSTGRES_DB: "zenith_prod"
+  POSTGRES_USER: "zenith_prod_user"
+  NODE_ENV: "production"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zenith-secrets
+  namespace: zenith-prod
+type: Opaque
+data:
+  # Base64 encoded values - replace with actual secrets
+  POSTGRES_PASSWORD: "Q0hBTkdFX1RISVNfUEFTU1dPUkQ="  # CHANGE_THIS_PASSWORD
+  REDIS_PASSWORD: "Q0hBTkdFX1RISVNfUEFTU1dPUkQ="     # CHANGE_THIS_PASSWORD
+  JWT_SECRET_KEY: "Q0hBTkdFX1RISVNfU0VDUkVUX0tFWQ==" # CHANGE_THIS_SECRET_KEY
+  SECRET_KEY: "Q0hBTkdFX1RISVNfU0VDUkVUX0tFWQ=="   # CHANGE_THIS_SECRET_KEY
+  NEXTAUTH_SECRET: "Q0hBTkdFX1RISVNfU0VDUkVUX0tFWQ==" # CHANGE_THIS_SECRET_KEY
+  SUPABASE_ANON_KEY: "eW91ci1zdXBhYmFzZS1hbm9uLWtleQ=="
+  SUPABASE_SERVICE_ROLE_KEY: "eW91ci1zdXBhYmFzZS1zZXJ2aWNlLXJvbGUta2V5"
+  STRIPE_SECRET_KEY: "c2tfbGl2ZV8uLi4="
+  GRAFANA_ADMIN_PASSWORD: "YWRtaW4="
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: zenith-prod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: zenith-prod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: zenith-prod
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: zenith-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: zenith-config
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: POSTGRES_PASSWORD
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - zenith_prod_user
+            - -d
+            - zenith_prod
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - zenith_prod_user
+            - -d
+            - zenith_prod
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: zenith-prod
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        command: ["redis-server", "--appendonly", "yes", "--requirepass", "$(REDIS_PASSWORD)"]
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: REDIS_PASSWORD
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - --raw
+            - incr
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - --raw
+            - incr
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zenith-backend
+  namespace: zenith-prod
+  labels:
+    app: zenith-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zenith-backend
+  template:
+    metadata:
+      labels:
+        app: zenith-backend
+    spec:
+      containers:
+      - name: backend
+        image: zenith/backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://zenith_prod_user:$(POSTGRES_PASSWORD)@postgres:5432/zenith_prod"
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis:6379"
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: JWT_SECRET_KEY
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: SECRET_KEY
+        - name: SUPABASE_URL
+          value: "https://your-project.supabase.co"
+        - name: SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: SUPABASE_ANON_KEY
+        - name: SUPABASE_SERVICE_ROLE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: SUPABASE_SERVICE_ROLE_KEY
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: zenith-config
+              key: DEBUG
+        - name: WORKERS
+          value: "4"
+        - name: WORKER_CLASS
+          value: "uvicorn.workers.UvicornWorker"
+        resources:
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zenith-frontend
+  namespace: zenith-prod
+  labels:
+    app: zenith-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zenith-frontend
+  template:
+    metadata:
+      labels:
+        app: zenith-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: zenith/frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: "https://api.yourdomain.com/api/v1"
+        - name: NEXT_PUBLIC_SUPABASE_URL
+          value: "https://your-project.supabase.co"
+        - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: SUPABASE_ANON_KEY
+        - name: NEXTAUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: NEXTAUTH_SECRET
+        - name: NEXTAUTH_URL
+          value: "https://yourdomain.com"
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: zenith-config
+              key: NODE_ENV
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: zenith-prod
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: zenith-prod
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zenith-backend
+  namespace: zenith-prod
+spec:
+  selector:
+    app: zenith-backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zenith-frontend
+  namespace: zenith-prod
+spec:
+  selector:
+    app: zenith-frontend
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zenith-ingress
+  namespace: zenith-prod
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - yourdomain.com
+    - api.yourdomain.com
+    secretName: zenith-tls
+  rules:
+  - host: api.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: zenith-backend
+            port:
+              number: 8000
+  - host: yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: zenith-frontend
+            port:
+              number: 3000
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: zenith-prod
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      # Logging
+      log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+      access_log /var/log/nginx/access.log main;
+      error_log /var/log/nginx/error.log;
+
+      # Performance
+      sendfile on;
+      tcp_nopush on;
+      tcp_nodelay on;
+      keepalive_timeout 65;
+      types_hash_max_size 2048;
+      client_max_body_size 100M;
+
+      # Gzip compression
+      gzip on;
+      gzip_vary on;
+      gzip_min_length 1024;
+      gzip_proxied any;
+      gzip_comp_level 6;
+      gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml
+        image/svg+xml;
+
+      # Rate limiting
+      limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+      limit_req_zone $binary_remote_addr zone=general:10m rate=100r/s;
+
+      upstream backend {
+        server zenith-backend:8000;
+      }
+
+      upstream frontend {
+        server zenith-frontend:3000;
+      }
+
+      server {
+        listen 80;
+        server_name _;
+        return 301 https://$host$request_uri;
+      }
+
+      server {
+        listen 443 ssl http2;
+        server_name yourdomain.com;
+
+        ssl_certificate /etc/ssl/certs/tls.crt;
+        ssl_certificate_key /etc/ssl/private/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+
+        # Security headers
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-XSS-Protection "1; mode=block";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        location / {
+          limit_req zone=general burst=20 nodelay;
+          proxy_pass http://frontend;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api/ {
+          limit_req zone=api burst=10 nodelay;
+          proxy_pass http://backend;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+      }
+    }

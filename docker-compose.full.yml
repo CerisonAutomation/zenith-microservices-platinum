@@ -1,0 +1,204 @@
+version: '3.8'
+
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./zenith_production_ready
+      dockerfile: Dockerfile
+    container_name: zenith-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://zenith:zenith123@postgres:5432/zenith
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${DEBUG}
+    depends_on:
+      - postgres
+    volumes:
+      - ./zenith_production_ready:/app
+    networks:
+      - zenith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: zenith-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://backend:8000/api/v1
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+    networks:
+      - zenith-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: zenith-postgres
+    environment:
+      - POSTGRES_USER=zenith
+      - POSTGRES_PASSWORD=zenith123
+      - POSTGRES_DB=zenith
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - zenith-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zenith"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: zenith-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - zenith-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # MySQL Database for pH7Builder
+  mysql:
+    image: mysql:8.0
+    container_name: zenith-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=zenith123!
+      - MYSQL_DATABASE=ph7builder
+      - MYSQL_USER=ph7builder
+      - MYSQL_PASSWORD=zenith123!
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - zenith-network
+    command: --default-authentication-plugin=mysql_native_password --ssl=0
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pzenith123!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB for Rocket.Chat
+  mongo:
+    image: mongo:4.4
+    container_name: zenith-mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=zenith123!
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - zenith-network
+    restart: unless-stopped
+
+  # Rocket.Chat - Real-time Chat Platform
+  rocketchat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:latest
+    container_name: zenith-rocketchat
+    ports:
+      - "3001:3000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/rocketchat
+      - MONGO_OPLOG_URL=mongodb://mongo:27017/local
+      - ROOT_URL=http://localhost:3001
+      - PORT=3000
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASS=zenith123!
+      - ADMIN_EMAIL=admin@zenith.local
+      - OVERWRITE_SETTING_Show_Setup_Wizard=completed
+      - OVERWRITE_SETTING_Site_Name=Zenith Chat
+      - OVERWRITE_SETTING_Site_Url=http://localhost:3001
+      - OVERWRITE_SETTING_Organization_Name=Zenith Platform
+      - OVERWRITE_SETTING_Organization_Email=support@zenith.local
+    depends_on:
+      - mongo
+    volumes:
+      - rocketchat_uploads:/app/uploads
+      - ./chat/custom.css:/app/custom.css:ro
+    networks:
+      - zenith-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # pH7Builder - Social Dating CMS
+  ph7builder:
+    build:
+      context: ./ph7builder
+      dockerfile: Dockerfile
+    container_name: zenith-ph7builder
+    ports:
+      - "8080:80"
+    environment:
+      - PH7_DB_HOST=mysql
+      - PH7_DB_PORT=3306
+      - PH7_DB_NAME=ph7builder
+      - PH7_DB_USER=ph7builder
+      - PH7_DB_PASS=zenith123!
+      - PH7_SITE_URL=http://localhost:8080
+      - PH7_ADMIN_EMAIL=admin@zenith.local
+    depends_on:
+      - mysql
+    volumes:
+      - ./ph7builder:/var/www/html
+      - ph7builder_uploads:/var/www/html/data/uploads
+    networks:
+      - zenith-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (Optional - for production routing)
+  nginx:
+    image: nginx:alpine
+    container_name: zenith-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+      - rocketchat
+      - ph7builder
+    networks:
+      - zenith-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mysql_data:
+  mongo_data:
+  rocketchat_uploads:
+  ph7builder_uploads:
+  nginx_logs:
+
+networks:
+  zenith-network:
+    driver: bridge
+
