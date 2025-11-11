@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Mail, Lock, User, Chrome, Apple, Facebook } from 'lucide-react';
 
 export function AuthFlow() {
-  const { signIn, signUp, signInWithOAuth, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithOAuth, signInAsGuest, resetPassword } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
 
@@ -84,6 +84,17 @@ export function AuthFlow() {
     setLoading(true);
     try {
       await signInWithOAuth(provider);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGuestSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInAsGuest();
     } catch (error) {
       console.error(error);
     } finally {
@@ -301,6 +312,24 @@ export function AuthFlow() {
               <Apple className="h-4 w-4" />
             </Button>
           </div>
+
+          <div className="relative my-4">
+            <Separator />
+          </div>
+
+          {/* Guest Login Button */}
+          <Button
+            variant="outline"
+            onClick={handleGuestSignIn}
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-purple-600/10 to-pink-600/10 border-purple-500/50 hover:bg-gradient-to-r hover:from-purple-600/20 hover:to-pink-600/20"
+          >
+            <User className="h-4 w-4 mr-2" />
+            Continue as Guest (7-Day Free Trial)
+          </Button>
+          <p className="text-xs text-center text-muted-foreground mt-2">
+            No credit card required • Full access • Upgrade anytime
+          </p>
         </CardContent>
       </Card>
     </div>

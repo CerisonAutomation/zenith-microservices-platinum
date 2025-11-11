@@ -27,8 +27,10 @@ interface AuthContextType {
   signUp: (email: string, password: string, metadata?: any) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithOAuth: (provider: 'google' | 'facebook' | 'apple') => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  isGuest: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,10 +40,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const initAuth = async () => {
+      // Check for existing guest session first
+      const guestSessionData = localStorage.getItem('zenith_guest_session');
+      if (guestSessionData) {
+        try {
+          const { user: guestUser, session: guestSession, trialEnd } = JSON.parse(guestSessionData);
+
+          // Check if trial is still valid
+          const trialEndDate = new Date(trialEnd);
+          const now = new Date();
+
+          if (now < trialEndDate) {
+            // Trial still valid, restore guest session
+            setUser(guestUser);
+            setSession(guestSession);
+            setIsGuest(true);
+            setLoading(false);
+            console.log('✅ Guest session restored. Trial ends:', trialEndDate.toLocaleString());
+            return;
+          } else {
+            // Trial expired, clear guest session
+            localStorage.removeItem('zenith_guest_session');
+            console.log('⏰ Guest trial expired');
+          }
+        } catch (error) {
+          console.error('Failed to restore guest session:', error);
+          localStorage.removeItem('zenith_guest_session');
+        }
+      }
+
       // Check if Supabase is properly configured
       const configured = isSupabaseConfigured();
 
@@ -315,6 +347,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInAsGuest = async () => {
+    try {
+      // Generate a unique guest ID
+      const guestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 7); // 7 days from now
+
+      // Create guest user object
+      const guestUser = {
+        id: guestId,
+        email: `${guestId}@guest.zenith.app`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        app_metadata: {},
+        user_metadata: {
+          name: 'Guest User',
+          isGuest: true,
+          trialEnd: trialEndDate.toISOString(),
+        },
+        aud: 'authenticated',
+        role: 'authenticated',
+      } as User;
+
+      // Create guest session
+      const guestSession = {
+        access_token: `guest-token-${guestId}`,
+        refresh_token: `guest-refresh-${guestId}`,
+        expires_in: 604800, // 7 days in seconds
+        token_type: 'bearer',
+        user: guestUser,
+      } as Session;
+
+      // Store guest session in localStorage for persistence
+      localStorage.setItem('zenith_guest_session', JSON.stringify({
+        user: guestUser,
+        session: guestSession,
+        trialEnd: trialEndDate.toISOString(),
+      }));
+
+      setUser(guestUser);
+      setSession(guestSession);
+      setIsGuest(true);
+
+      toast({
+        title: 'Welcome to Zenith! 🎉',
+        description: `Your 7-day free trial starts now. Enjoy all features with no credit card required!`,
+      });
+    } catch (error) {
+      console.error('Guest login error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to start guest session. Please try again.',
+      });
+      throw error;
+    }
+  };
+
   const value = {
     user,
     session,
@@ -323,8 +413,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     signInWithOAuth,
+    signInAsGuest,
     resetPassword,
     updatePassword,
+    isGuest,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

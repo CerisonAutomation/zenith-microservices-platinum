@@ -10,8 +10,11 @@ import './globals.css'
 import { AuthProvider } from '../contexts/AuthContext'
 import { AppProvider } from '../contexts/AppContext'
 import { LocationProvider } from '../contexts/LocationContext'
+import { AIBoyfriendProvider } from '../contexts/AIBoyfriendContext'
 import { Toaster } from '../components/ui/toaster'
 import BottomNav from '../components/navigation/BottomNav'
+import AIBoyfriendIntegration from '../components/ai/AIBoyfriendIntegration'
+import GuestTrialBanner from '../components/auth/GuestTrialBanner'
 import { Suspense } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -56,13 +59,17 @@ export default function RootLayout({
           <AuthProvider>
             <AppProvider>
               <LocationProvider>
-                <div className="flex flex-col min-h-screen">
-                  <main className="flex-1 pb-20">
-                    {children}
-                  </main>
-                  <BottomNav activeTab="explore" onTabChange={() => {}} />
-                </div>
-                <Toaster />
+                <AIBoyfriendProvider>
+                  <GuestTrialBanner />
+                  <div className="flex flex-col min-h-screen">
+                    <main className="flex-1 pb-20">
+                      {children}
+                    </main>
+                    <BottomNav activeTab="explore" onTabChange={() => {}} />
+                  </div>
+                  <Toaster />
+                  <AIBoyfriendIntegration />
+                </AIBoyfriendProvider>
               </LocationProvider>
             </AppProvider>
           </AuthProvider>
