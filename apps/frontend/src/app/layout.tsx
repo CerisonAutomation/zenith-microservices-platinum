@@ -15,6 +15,7 @@ import { Toaster } from '../components/ui/toaster'
 import BottomNav from '../components/navigation/BottomNav'
 import AIBoyfriendIntegration from '../components/ai/AIBoyfriendIntegration'
 import GuestTrialBanner from '../components/auth/GuestTrialBanner'
+import { NotificationWrapper } from '../components/notifications/NotificationWrapper'
 import { Suspense } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -60,15 +61,17 @@ export default function RootLayout({
             <AppProvider>
               <LocationProvider>
                 <AIBoyfriendProvider>
-                  <GuestTrialBanner />
-                  <div className="flex flex-col min-h-screen">
-                    <main className="flex-1 pb-20">
-                      {children}
-                    </main>
-                    <BottomNav activeTab="explore" onTabChange={() => {}} />
-                  </div>
-                  <Toaster />
-                  <AIBoyfriendIntegration />
+                  <NotificationWrapper>
+                    <GuestTrialBanner />
+                    <div className="flex flex-col min-h-screen">
+                      <main className="flex-1 pb-20">
+                        {children}
+                      </main>
+                      <BottomNav activeTab="explore" onTabChange={() => {}} />
+                    </div>
+                    <Toaster />
+                    <AIBoyfriendIntegration />
+                  </NotificationWrapper>
                 </AIBoyfriendProvider>
               </LocationProvider>
             </AppProvider>
