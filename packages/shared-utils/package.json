@@ -4,14 +4,16 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
     "prom-client": "^15.1.0",
     "jsonwebtoken": "^9.0.2",
     "express": "^4.18.2",
-    "@openfeature/js-sdk": "^1.6.0",
-    "@openfeature/in-memory-provider": "^1.0.0",
+    "@openfeature/server-sdk": "^1.13.5",
     "ioredis": "^5.3.2",
     "winston": "^3.11.0",
     "joi": "^17.11.0"
