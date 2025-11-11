@@ -62,17 +62,20 @@ export default function BookingDialog({
 
   const handleBooking = () => {
     // Handle booking logic
-
-      selectedType, 
-      selectedDate, 
-      selectedTime, 
-      location, 
-      notes, 
+    const bookingData = {
+      selectedType,
+      selectedDate,
+      selectedTime,
+      location,
+      notes,
       meetNow,
       kinks: selectedKinks,
       roles: selectedRoles,
       bookingPreferences: profileBookingPreferences
-    });
+    };
+
+    console.log('Booking created:', bookingData);
+    // TODO: Integrate with booking API
     onOpenChange(false);
   };
 
