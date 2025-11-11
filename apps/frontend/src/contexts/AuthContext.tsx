@@ -18,6 +18,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { api, authAPI } from '../lib/api';
 import { mockUser } from '../lib/mockData';
 import { useToast } from '../components/ui/use-toast';
+import { safeGetItem, safeSetItem, safeRemoveItem, isStorageAvailable } from '../lib/safeStorage';
 
 interface AuthContextType {
   user: User | null;
@@ -45,33 +46,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
+      // Check storage availability
+      if (!isStorageAvailable()) {
+        console.warn('⚠️ localStorage unavailable - guest mode disabled');
+        toast({
+          variant: 'destructive',
+          title: 'Storage Disabled',
+          description: 'Guest mode requires browser storage. Please enable cookies and try again.',
+        });
+      }
+
       // Check for existing guest session first
-      const guestSessionData = localStorage.getItem('zenith_guest_session');
-      if (guestSessionData) {
-        try {
-          const { user: guestUser, session: guestSession, trialEnd } = JSON.parse(guestSessionData);
+      const guestResult = safeGetItem<{
+        user: User;
+        session: Session;
+        trialEnd: string;
+      }>('zenith_guest_session');
 
-          // Check if trial is still valid
-          const trialEndDate = new Date(trialEnd);
-          const now = new Date();
+      if (guestResult.success && guestResult.data) {
+        const { user: guestUser, session: guestSession, trialEnd } = guestResult.data;
 
-          if (now < trialEndDate) {
-            // Trial still valid, restore guest session
-            setUser(guestUser);
-            setSession(guestSession);
-            setIsGuest(true);
-            setLoading(false);
-            console.log('✅ Guest session restored. Trial ends:', trialEndDate.toLocaleString());
-            return;
-          } else {
-            // Trial expired, clear guest session
-            localStorage.removeItem('zenith_guest_session');
-            console.log('⏰ Guest trial expired');
-          }
-        } catch (error) {
-          console.error('Failed to restore guest session:', error);
-          localStorage.removeItem('zenith_guest_session');
+        // Check if trial is still valid
+        const trialEndDate = new Date(trialEnd);
+        const now = new Date();
+
+        if (now < trialEndDate) {
+          // Trial still valid, restore guest session
+          setUser(guestUser);
+          setSession(guestSession);
+          setIsGuest(true);
+          setLoading(false);
+          console.log('✅ Guest session restored. Trial ends:', trialEndDate.toLocaleString());
+          return;
+        } else {
+          // Trial expired, clear guest session
+          safeRemoveItem('zenith_guest_session');
+          console.log('⏰ Guest trial expired');
+          toast({
+            title: 'Trial Expired',
+            description: 'Your 7-day trial has ended. Create a free account to continue!',
+          });
         }
+      } else if (guestResult.error) {
+        console.error('Guest session restoration failed:', guestResult.error);
+        safeRemoveItem('zenith_guest_session');
       }
 
       // Check if Supabase is properly configured
@@ -380,11 +398,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } as Session;
 
       // Store guest session in localStorage for persistence
-      localStorage.setItem('zenith_guest_session', JSON.stringify({
+      const stored = safeSetItem('zenith_guest_session', {
         user: guestUser,
         session: guestSession,
         trialEnd: trialEndDate.toISOString(),
-      }));
+        timestamp: Date.now(), // For cleanup
+      });
+
+      if (!stored) {
+        throw new Error('Failed to save guest session - storage may be full or disabled');
+      }
 
       setUser(guestUser);
       setSession(guestSession);

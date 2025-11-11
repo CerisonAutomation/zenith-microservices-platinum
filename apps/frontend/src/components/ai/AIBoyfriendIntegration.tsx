@@ -73,6 +73,7 @@ export default function AIBoyfriendIntegration() {
         isOpen={isChatOpen}
         onClose={closeChat}
         userName={userName}
+        userId={user?.id}
         onUpgradePrompt={openSubscriptionDialog}
       />
 

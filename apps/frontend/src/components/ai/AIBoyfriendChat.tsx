@@ -13,6 +13,7 @@ import { Input } from '../ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
+import { safeGetItem, safeSetItem } from '@/lib/safeStorage';
 
 interface Message {
   id: string;
@@ -26,6 +27,7 @@ interface AIBoyfriendChatProps {
   isOpen: boolean;
   onClose: () => void;
   userName?: string;
+  userId?: string;
   onUpgradePrompt?: () => void;
 }
 
@@ -33,21 +35,59 @@ export default function AIBoyfriendChat({
   isOpen,
   onClose,
   userName = 'there',
+  userId,
   onUpgradePrompt,
 }: AIBoyfriendChatProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'ai',
-      content: `Hey ${userName}! 👋 I'm Zenith, your AI companion. I'm here to help you navigate dating, give advice, or just chat. What's on your mind?`,
-      timestamp: new Date(),
-      mood: 'playful',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load message history from storage on mount
+  useEffect(() => {
+    if (!userId || isInitialized) return;
+
+    const storageKey = `zenith_chat_history_${userId}`;
+    const result = safeGetItem<Message[]>(storageKey);
+
+    if (result.success && result.data && result.data.length > 0) {
+      // Restore message history
+      setMessages(result.data.map(msg => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp), // Convert back to Date
+      })));
+      console.log(`✅ Restored ${result.data.length} messages for user ${userId}`);
+    } else {
+      // Initialize with welcome message
+      const welcomeMessage: Message = {
+        id: '1',
+        role: 'ai',
+        content: `Hey ${userName}! 👋 I'm Zenith, your AI companion. I'm here to help you navigate dating, give advice, or just chat. What's on your mind?`,
+        timestamp: new Date(),
+        mood: 'playful',
+      };
+      setMessages([welcomeMessage]);
+    }
+
+    setIsInitialized(true);
+  }, [userId, userName, isInitialized]);
+
+  // Save message history to storage whenever it changes
+  useEffect(() => {
+    if (!userId || !isInitialized || messages.length === 0) return;
+
+    const storageKey = `zenith_chat_history_${userId}`;
+
+    // Limit to last 50 messages to avoid storage bloat
+    const messagesToSave = messages.slice(-50);
+
+    const saved = safeSetItem(storageKey, messagesToSave);
+    if (!saved) {
+      console.warn('Failed to save chat history - storage may be full');
+    }
+  }, [messages, userId, isInitialized]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -173,9 +213,11 @@ export default function AIBoyfriendChat({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
-        className={`fixed bottom-4 right-4 ${
-          isMinimized ? 'w-80 h-16' : 'w-96 h-[600px]'
-        } bg-gradient-to-br from-purple-900/95 via-pink-900/95 to-purple-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 flex flex-col z-50 transition-all duration-300`}
+        className={`fixed bottom-4 ${
+          isMinimized
+            ? 'w-80 h-16 right-4'
+            : 'w-full max-w-md h-[85vh] max-h-[600px] right-0 sm:right-4 sm:w-96'
+        } bg-gradient-to-br from-purple-900/95 via-pink-900/95 to-purple-900/95 backdrop-blur-xl rounded-2xl sm:rounded-2xl rounded-br-none rounded-tr-none shadow-2xl border border-white/20 flex flex-col z-50 transition-all duration-300`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">

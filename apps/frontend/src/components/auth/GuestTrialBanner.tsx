@@ -11,12 +11,33 @@ import { useAIBoyfriend } from '@/contexts/AIBoyfriendContext';
 import { Button } from '../ui/button';
 import { AlertCircle, Sparkles, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { safeGetItem, safeSetItem } from '@/lib/safeStorage';
 
 export default function GuestTrialBanner() {
   const { user, isGuest } = useAuth();
   const { openSubscriptionDialog } = useAIBoyfriend();
   const [daysRemaining, setDaysRemaining] = useState(0);
   const [isDismissed, setIsDismissed] = useState(false);
+
+  // Check dismissal state from storage
+  useEffect(() => {
+    if (!isGuest || !user?.id) return;
+
+    const storageKey = `zenith_banner_dismissed_${user.id}`;
+    const result = safeGetItem<{ dismissedAt: number; dismissedUntil: string }>(storageKey);
+
+    if (result.success && result.data) {
+      const { dismissedAt, dismissedUntil } = result.data;
+      const now = new Date();
+      const dismissUntil = new Date(dismissedUntil);
+
+      // If dismissal is still valid (before dismissedUntil), keep it dismissed
+      if (now < dismissUntil) {
+        setIsDismissed(true);
+        console.log(`Banner dismissed until ${dismissUntil.toLocaleString()}`);
+      }
+    }
+  }, [isGuest, user]);
 
   useEffect(() => {
     if (!isGuest || !user?.user_metadata?.trialEnd) return;
@@ -34,6 +55,26 @@ export default function GuestTrialBanner() {
 
     return () => clearInterval(interval);
   }, [isGuest, user]);
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+
+    if (user?.id) {
+      const now = new Date();
+      // Dismiss until tomorrow at 9am (good time to show reminder)
+      const dismissedUntil = new Date();
+      dismissedUntil.setDate(dismissedUntil.getDate() + 1);
+      dismissedUntil.setHours(9, 0, 0, 0);
+
+      const storageKey = `zenith_banner_dismissed_${user.id}`;
+      safeSetItem(storageKey, {
+        dismissedAt: now.getTime(),
+        dismissedUntil: dismissedUntil.toISOString(),
+      });
+
+      console.log(`Banner dismissed until ${dismissedUntil.toLocaleString()}`);
+    }
+  };
 
   if (!isGuest || isDismissed) return null;
 
@@ -92,10 +133,11 @@ export default function GuestTrialBanner() {
             </Button>
 
             <Button
-              onClick={() => setIsDismissed(true)}
+              onClick={handleDismiss}
               size="icon"
               variant="ghost"
               className="text-white hover:bg-white/20 flex-shrink-0"
+              aria-label="Dismiss banner until tomorrow"
             >
               <X className="w-4 h-4" />
             </Button>
