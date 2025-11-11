@@ -14,7 +14,9 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { api, authAPI } from '../lib/api';
+import { mockUser } from '../lib/mockData';
 import { useToast } from '../components/ui/use-toast';
 
 interface AuthContextType {
@@ -35,46 +37,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // 🎭 DEMO MODE - Skip Supabase auth, use mock user
-    console.log('🎭 Running in DEMO MODE with mock authentication');
-    
-    // Create a mock user for demo purposes
-    const mockUser = {
-      id: 'demo-user-123',
-      email: 'demo@example.com',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      app_metadata: {},
-      user_metadata: { name: 'Demo User' },
-      aud: 'authenticated',
-      role: 'authenticated',
-    } as User;
-    
-    const mockSession = {
-      access_token: 'demo-token',
-      refresh_token: 'demo-refresh',
-      expires_in: 3600,
-      token_type: 'bearer',
-      user: mockUser,
-    } as Session;
-    
-    setUser(mockUser);
-    setSession(mockSession);
-    setLoading(false);
+    const initAuth = async () => {
+      // Check if Supabase is properly configured
+      const configured = isSupabaseConfigured();
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+      if (!configured) {
+        // 🎭 DEMO MODE - Skip Supabase auth, use mock user
+        console.log('🎭 Running in DEMO MODE with mock authentication');
+        console.log('💡 To enable production auth, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
-    return () => subscription.unsubscribe();
+        const demoUser = {
+          id: mockUser.id,
+          email: mockUser.email,
+          created_at: mockUser.createdAt,
+          updated_at: mockUser.createdAt,
+          app_metadata: {},
+          user_metadata: {
+            name: mockUser.name,
+            avatar: mockUser.avatar,
+            isPremium: mockUser.isPremium,
+          },
+          aud: 'authenticated',
+          role: 'authenticated',
+        } as User;
+
+        const demoSession = {
+          access_token: 'demo-token',
+          refresh_token: 'demo-refresh',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: demoUser,
+        } as Session;
+
+        setUser(demoUser);
+        setSession(demoSession);
+        setIsDemoMode(true);
+        setLoading(false);
+        return;
+      }
+
+      // 🔐 PRODUCTION MODE - Use real Supabase authentication
+      console.log('🔐 Running in PRODUCTION MODE with Supabase authentication');
+
+      try {
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+
+        if (initialSession) {
+          setSession(initialSession);
+          setUser(initialSession.user);
+          // Set token for API client
+          if (initialSession.access_token) {
+            api.setToken(initialSession.access_token);
+            authAPI.setToken(initialSession.access_token);
+          }
+        }
+
+        // Listen for auth changes
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          // Update API client token
+          if (session?.access_token) {
+            api.setToken(session.access_token);
+            authAPI.setToken(session.access_token);
+          } else {
+            api.clearToken();
+            authAPI.clearToken();
+          }
+        });
+
+        setLoading(false);
+
+        return () => subscription.unsubscribe();
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+        setLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   const handleAuthError = (error: AuthError) => {
@@ -94,13 +143,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (isDemoMode) {
+      toast({
+        title: 'Demo Mode',
+        description: 'Already signed in with demo account. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
+
+      // Set token for API client
+      if (data.session?.access_token) {
+        api.setToken(data.session.access_token);
+        authAPI.setToken(data.session.access_token);
+      }
 
       toast({
         title: 'Welcome back!',
@@ -113,8 +176,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, metadata?: any) => {
+    if (isDemoMode) {
+      toast({
+        title: 'Demo Mode',
+        description: 'Sign up is disabled in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -124,6 +195,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) throw error;
+
+      // Set token for API client if immediately available
+      if (data.session?.access_token) {
+        api.setToken(data.session.access_token);
+        authAPI.setToken(data.session.access_token);
+      }
 
       toast({
         title: 'Account created!',
@@ -136,9 +213,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (isDemoMode) {
+      toast({
+        title: 'Demo Mode',
+        description: 'Cannot sign out in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+
+      // Clear API client tokens
+      api.clearToken();
+      authAPI.clearToken();
 
       toast({
         title: 'Signed out',
@@ -151,6 +240,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithOAuth = async (provider: 'google' | 'facebook' | 'apple') => {
+    if (isDemoMode) {
+      toast({
+        title: 'Demo Mode',
+        description: 'OAuth is disabled in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -167,6 +264,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
+    if (isDemoMode) {
+      toast({
+        title: 'Demo Mode',
+        description: 'Password reset is disabled in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
@@ -185,6 +290,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePassword = async (newPassword: string) => {
+    if (isDemoMode) {
+      toast({
+        title: 'Demo Mode',
+        description: 'Password update is disabled in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
