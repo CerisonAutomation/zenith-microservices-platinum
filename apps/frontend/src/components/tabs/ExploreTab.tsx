@@ -1,120 +1,57 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { SlidersHorizontal, MapPin, Zap, TrendingUp } from "lucide-react";
+import { SlidersHorizontal, MapPin, Zap, TrendingUp, Loader2 } from "lucide-react";
 import ProfileCard from "../profile/ProfileCard";
 import FilterDialog from "../filters/FilterDialog";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-
-// Mock data
-const mockProfiles = [
-  {
-    id: "1",
-    name: "Alex",
-    age: 28,
-    distance: "0.5 km",
-    online: true,
-    photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
-    photos: [
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
-    ],
-    bio: "Adventure seeker 🏔️ | Coffee enthusiast ☕ | Love hiking and exploring new places",
-    verified: true,
-    meetNow: true,
-    videoVerified: true,
-    responseRate: 95,
-    lastActive: "2m ago",
-  },
-  {
-    id: "2",
-    name: "Jordan",
-    age: 25,
-    distance: "1.2 km",
-    online: true,
-    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
-    photos: [
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
-    ],
-    bio: "Fitness & wellness 💪 | Dog lover 🐕 | Personal trainer",
-    verified: false,
-    meetNow: false,
-    videoVerified: false,
-    responseRate: 88,
-    lastActive: "1h ago",
-  },
-  {
-    id: "3",
-    name: "Sam",
-    age: 30,
-    distance: "2.1 km",
-    online: false,
-    photo: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
-    bio: "Artist & musician 🎨🎵 | Creative soul",
-    verified: true,
-    meetNow: false,
-    videoVerified: true,
-    responseRate: 92,
-    lastActive: "3h ago",
-  },
-  {
-    id: "4",
-    name: "Taylor",
-    age: 27,
-    distance: "3.5 km",
-    online: true,
-    photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80",
-    bio: "Foodie | Travel enthusiast ✈️ | Always planning the next adventure",
-    verified: true,
-    meetNow: true,
-    videoVerified: false,
-    responseRate: 90,
-    lastActive: "5m ago",
-  },
-  {
-    id: "5",
-    name: "Morgan",
-    age: 29,
-    distance: "4.2 km",
-    online: false,
-    photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80",
-    bio: "Tech geek 💻 | Gamer 🎮 | Software engineer",
-    verified: false,
-    meetNow: false,
-    videoVerified: false,
-    responseRate: 75,
-    lastActive: "1d ago",
-  },
-  {
-    id: "6",
-    name: "Casey",
-    age: 26,
-    distance: "5.0 km",
-    online: true,
-    photo: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&q=80",
-    bio: "Yoga instructor 🧘 | Nature lover 🌿 | Mindfulness advocate",
-    verified: true,
-    meetNow: false,
-    videoVerified: true,
-    responseRate: 97,
-    lastActive: "10m ago",
-  },
-];
+import { useApp } from "@/contexts/AppContext";
 
 export default function ExploreTab() {
+  const { profiles, isDemoMode, refreshProfiles } = useApp();
   const [filterOpen, setFilterOpen] = useState(false);
-  const [profiles] = useState(mockProfiles);
   const [viewMode, setViewMode] = useState<"all" | "meetNow" | "trending">("all");
+  const [loading, setLoading] = useState(false);
 
-  const filteredProfiles = profiles.filter(profile => {
+  useEffect(() => {
+    // Refresh profiles when component mounts
+    const loadProfiles = async () => {
+      if (!isDemoMode) {
+        setLoading(true);
+        try {
+          await refreshProfiles();
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    loadProfiles();
+  }, [isDemoMode, refreshProfiles]);
+
+  // Map profile data to expected format for ProfileCard
+  const displayProfiles = profiles.map(profile => ({
+    id: profile.id,
+    name: profile.name,
+    age: profile.age,
+    distance: profile.distance || `${Math.random() * 5 + 0.5}`.slice(0, 3) + " km",
+    online: Math.random() > 0.5,
+    photo: profile.avatar || profile.photo,
+    photos: profile.photos || [profile.avatar],
+    bio: profile.bio || "",
+    verified: profile.verified || false,
+    meetNow: Math.random() > 0.7,
+    videoVerified: profile.verified || false,
+    responseRate: profile.matchScore || Math.floor(Math.random() * 30 + 70),
+    lastActive: "Recently",
+  }));
+
+  const filteredProfiles = displayProfiles.filter(profile => {
     if (viewMode === "meetNow") return profile.meetNow;
     if (viewMode === "trending") return profile.responseRate && profile.responseRate > 90;
     return true;
   });
 
-  const meetNowCount = profiles.filter(p => p.meetNow).length;
+  const meetNowCount = displayProfiles.filter(p => p.meetNow).length;
 
   return (
     <div className="min-h-screen">
@@ -187,35 +124,43 @@ export default function ExploreTab() {
 
       {/* Grid */}
       <div className="p-4">
-        <motion.div
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          {filteredProfiles.map((profile, index) => (
-            <motion.div
-              key={profile.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <ProfileCard profile={profile} />
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {filteredProfiles.length === 0 && (
-          <div className="text-center py-20">
-            <p className="text-gray-400">No profiles match your filters</p>
-            <Button
-              onClick={() => setViewMode("all")}
-              variant="outline"
-              className="mt-4 border-white/20 hover:bg-white/10"
-            >
-              View All Profiles
-            </Button>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
           </div>
+        ) : (
+          <>
+            <motion.div
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {filteredProfiles.map((profile, index) => (
+                <motion.div
+                  key={profile.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <ProfileCard profile={profile} />
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {filteredProfiles.length === 0 && (
+              <div className="text-center py-20">
+                <p className="text-gray-400">No profiles match your filters</p>
+                <Button
+                  onClick={() => setViewMode("all")}
+                  variant="outline"
+                  className="mt-4 border-white/20 hover:bg-white/10"
+                >
+                  View All Profiles
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

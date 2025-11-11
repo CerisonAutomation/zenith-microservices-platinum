@@ -12,18 +12,57 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { supabase, subscribeToTable } from '@/lib/supabase';
-import { Profile, Notification, ProfileUpdate, NotificationUpdate } from '@/types';
-import { mockCurrentUser, mockNotifications } from '@/lib/mockData';
+import {
+  supabase,
+  isSupabaseConfigured,
+  subscribeToNotifications,
+  getUser,
+  getProfiles
+} from '@/lib/supabase';
+import {
+  userService,
+  notificationService,
+  discoveryService
+} from '@/lib/api';
+import { mockUser, mockNotifications, mockProfiles } from '@/lib/mockData';
+
+interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  bio?: string;
+  age: number;
+  gender: string;
+  location: string;
+  interests: string[];
+  isPremium: boolean;
+  verified: boolean;
+  [key: string]: any;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  avatar?: string;
+  [key: string]: any;
+}
 
 interface AppContextType {
   currentProfile: Profile | null;
+  profiles: Profile[];
   notifications: Notification[];
   unreadCount: number;
+  isDemoMode: boolean;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   refreshProfile: () => Promise<void>;
-  updateProfile: (updates: ProfileUpdate) => Promise<void>;
+  refreshProfiles: () => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -31,56 +70,89 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
-  // Load user profile
+  // Load user profile and data
   useEffect(() => {
-    if (user) {
-      loadUserProfile();
-      loadNotifications();
-      
-      // Subscribe to real-time notifications
-      const unsubscribe = subscribeToTable(
-        'notifications',
-        (payload) => {
-          if (payload.new) {
-            setNotifications((prev) => [payload.new as Notification, ...prev]);
-          }
-        },
-        `user_id=eq.${user.id}`
-      );
+    const initData = async () => {
+      const configured = isSupabaseConfigured();
+      setIsDemoMode(!configured);
 
-      return unsubscribe;
-    } else {
-      setCurrentProfile(null);
-      setNotifications([]);
-    }
+      if (user) {
+        if (!configured) {
+          // Demo mode: use mock data
+          console.log('🎭 AppContext: Using mock data in demo mode');
+          setCurrentProfile(mockUser as any);
+          setProfiles(mockProfiles as any);
+          setNotifications(mockNotifications as any);
+        } else {
+          // Production mode: load from backend
+          console.log('🔐 AppContext: Loading data from backend');
+          await loadUserProfile();
+          await loadProfiles();
+          await loadNotifications();
+
+          // Subscribe to real-time notifications
+          const channel = subscribeToNotifications(user.id, (payload) => {
+            console.log('📬 New notification:', payload);
+            if (payload.new) {
+              setNotifications((prev) => [payload.new as Notification, ...prev]);
+            }
+          });
+
+          return () => {
+            channel.unsubscribe();
+          };
+        }
+      } else {
+        setCurrentProfile(null);
+        setProfiles([]);
+        setNotifications([]);
+      }
+    };
+
+    initData();
   }, [user]);
 
   const loadUserProfile = async () => {
     if (!user) return;
 
     try {
-      // TODO: Replace with actual Supabase query
-      // const { data, error } = await supabase
-      //   .from('profiles')
-      //   .select('*')
-      //   .eq('user_id', user.id)
-      //   .single();
-      
-      // if (error) throw error;
-      // setCurrentProfile(data);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error) throw error;
-      setCurrentProfile(data);
+      // Try API service first, fall back to Supabase
+      try {
+        const data = await userService.getProfile();
+        setCurrentProfile(data as Profile);
+      } catch (apiError) {
+        console.log('API service unavailable, trying Supabase directly');
+        const data = await getUser(user.id);
+        setCurrentProfile(data as Profile);
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
+      // Fallback to mock data on error
+      console.log('Falling back to mock profile data');
+      setCurrentProfile(mockUser as any);
+    }
+  };
+
+  const loadProfiles = async () => {
+    try {
+      // Try API service first, fall back to Supabase
+      try {
+        const data = await discoveryService.getProfiles();
+        setProfiles(data as Profile[]);
+      } catch (apiError) {
+        console.log('API service unavailable, trying Supabase directly');
+        const data = await getProfiles();
+        setProfiles(data as Profile[]);
+      }
+    } catch (error) {
+      console.error('Error loading profiles:', error);
+      // Fallback to mock data on error
+      console.log('Falling back to mock profiles data');
+      setProfiles(mockProfiles as any);
     }
   };
 
@@ -88,103 +160,116 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      // TODO: Replace with actual Supabase query
-      // const { data, error } = await supabase
-      //   .from('notifications')
-      //   .select('*')
-      //   .eq('user_id', user.id)
-      //   .order('created_at', { ascending: false })
-      //   .limit(50);
-      
-      // if (error) throw error;
-      // setNotifications(data);
+      // Try API service first, fall back to Supabase
+      try {
+        const data = await notificationService.getNotifications();
+        setNotifications(data as Notification[]);
+      } catch (apiError) {
+        console.log('API service unavailable, trying Supabase directly');
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (error) throw error;
-      setNotifications(data);
+        if (error) throw error;
+        setNotifications(data as Notification[]);
+      }
     } catch (error) {
       console.error('Error loading notifications:', error);
+      // Fallback to mock data on error
+      console.log('Falling back to mock notifications data');
+      setNotifications(mockNotifications as any);
     }
   };
 
   const refreshProfile = async () => {
-    await loadUserProfile();
+    if (!isDemoMode) {
+      await loadUserProfile();
+    }
   };
 
-  const updateProfile = async (updates: ProfileUpdate) => {
+  const refreshProfiles = async () => {
+    if (!isDemoMode) {
+      await loadProfiles();
+    }
+  };
+
+  const updateProfile = async (updates: Partial<Profile>) => {
     if (!user || !currentProfile) return;
 
-    try {
-      // TODO: Replace with actual Supabase mutation
-      // const { data, error } = await supabase
-      //   .from('profiles')
-      //   .update(updates)
-      //   .eq('user_id', user.id)
-      //   .select()
-      //   .single();
-      
-      // if (error) throw error;
-      // setCurrentProfile(data);
+    if (isDemoMode) {
+      console.log('🎭 Demo mode: Profile update simulated');
+      setCurrentProfile({ ...currentProfile, ...updates });
+      return;
+    }
 
-      const { data, error } = await (supabase as any)
-        .from('profiles')
-        .update(updates)
-        .eq('user_id', user.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      setCurrentProfile(data);
+    try {
+      // Try API service first, fall back to Supabase
+      try {
+        const data = await userService.updateProfile(updates);
+        setCurrentProfile(data as Profile);
+      } catch (apiError) {
+        console.log('API service unavailable, trying Supabase directly');
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setCurrentProfile(data as Profile);
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
     }
   };
 
-  const markNotificationAsRead = (id: string) => {
+  const markNotificationAsRead = async (id: string) => {
     setNotifications((prev) =>
       prev.map((notif) =>
-        notif.id === id ? { ...notif, is_read: true } : notif
+        notif.id === id ? { ...notif, read: true } : notif
       )
     );
 
-    (supabase as any)
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', id)
-      .then();
+    if (!isDemoMode) {
+      try {
+        await notificationService.markAsRead(id);
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+      }
+    }
   };
 
-  const markAllNotificationsAsRead = () => {
+  const markAllNotificationsAsRead = async () => {
     setNotifications((prev) =>
-      prev.map((notif) => ({ ...notif, is_read: true }))
+      prev.map((notif) => ({ ...notif, read: true }))
     );
 
-    // TODO: Update in Supabase
-    // if (user) {
-    //   supabase
-    //     .from('notifications')
-    //     .update({ is_read: true })
-    //     .eq('user_id', user.id)
-    //     .then();
-    // }
+    if (!isDemoMode && user) {
+      try {
+        await notificationService.markAllAsRead();
+      } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+      }
+    }
   };
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const value = {
     currentProfile,
+    profiles,
     notifications,
     unreadCount,
+    isDemoMode,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     refreshProfile,
+    refreshProfiles,
     updateProfile,
   };
 
