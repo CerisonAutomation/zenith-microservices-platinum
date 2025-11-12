@@ -70,9 +70,15 @@ export interface DatingProfile {
     id: boolean;
   };
 
-  // Premium Status
+  // Premium/Platinum Status
+  subscriptionTier: 'free' | 'premium' | 'platinum';
   isPremium: boolean;
+  isPlatinum: boolean;
   premiumExpiry?: Date;
+  platinumExpiry?: Date;
+
+  // Professional Verification (Platinum Only)
+  professionalProfile?: ProfessionalProfile;
 
   // Stats & Activity
   stats: {
@@ -347,6 +353,7 @@ export interface Ban {
 export interface Subscription {
   id: string;
   userId: string;
+  tier: 'premium' | 'platinum';
   plan: 'monthly' | 'quarterly' | 'yearly';
   status: 'active' | 'cancelled' | 'expired' | 'past_due';
   startDate: Date;
@@ -435,4 +442,141 @@ export interface UserActivity {
   timestamp: Date;
   ipAddress?: string;
   userAgent?: string;
+}
+
+// Professional Profile (Platinum Tier Only)
+export interface ProfessionalProfile {
+  id: string;
+  userId: string;
+  category: 'executive' | 'entrepreneur' | 'medical' | 'legal' | 'finance' | 'tech' | 'entertainment' | 'real_estate' | 'academic' | 'creative';
+
+  // Professional Details
+  jobTitle: string;
+  company: string;
+  industry: string;
+  yearsOfExperience: number;
+  education: {
+    degree: string;
+    school: string;
+    graduationYear: number;
+  }[];
+
+  // Income Verification
+  incomeVerified: boolean;
+  incomeTier?: 'tier1' | 'tier2' | 'tier3' | 'tier4';
+  verificationDate?: Date;
+
+  // Background Screening
+  backgroundCheck: {
+    criminal: {
+      completed: boolean;
+      passed: boolean;
+      completedAt?: Date;
+    };
+    employment: {
+      completed: boolean;
+      verified: boolean;
+      completedAt?: Date;
+    };
+    education: {
+      completed: boolean;
+      verified: boolean;
+      completedAt?: Date;
+    };
+  };
+
+  // Professional Documents
+  documents: {
+    type: 'linkedin' | 'business_card' | 'license' | 'tax_return' | 'pay_stub' | 'other';
+    url: string;
+    verified: boolean;
+    uploadedAt: Date;
+  }[];
+
+  // Verification Status
+  verificationStatus: 'pending' | 'in_review' | 'verified' | 'rejected';
+  verifiedAt?: Date;
+  rejectionReason?: string;
+
+  // Professional Network
+  linkedInProfile?: string;
+  portfolioUrl?: string;
+  personalWebsite?: string;
+}
+
+// Concierge Service (Platinum Tier Only)
+export interface ConciergeRequest {
+  id: string;
+  userId: string;
+  type: 'date_planning' | 'travel' | 'venue_recommendation' | 'event_access' | 'other';
+  priority: 'standard' | 'urgent';
+
+  details: {
+    occasion?: string;
+    budget?: number;
+    preferences?: string;
+    date?: Date;
+    location?: string;
+    guestCount?: number;
+  };
+
+  status: 'submitted' | 'in_progress' | 'completed' | 'cancelled';
+  assignedConcierge?: {
+    id: string;
+    name: string;
+    contact: string;
+  };
+
+  recommendations?: {
+    venue?: string;
+    activities?: string[];
+    transportation?: string;
+    estimated_cost?: number;
+  };
+
+  notes?: string;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+// Executive Networking Event (Platinum Tier Only)
+export interface ExecutiveEvent {
+  id: string;
+  title: string;
+  description: string;
+  type: 'networking' | 'gala' | 'yacht_party' | 'golf_tournament' | 'wine_tasting' | 'art_gallery' | 'private_dinner';
+
+  venue: {
+    name: string;
+    address: string;
+    city: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+  };
+
+  date: Date;
+  endDate?: Date;
+  capacity: number;
+  attendeesCount: number;
+
+  // Platinum only events
+  platinumOnly: boolean;
+  minimumAge: number;
+  minimumIncomeTier?: 'tier1' | 'tier2' | 'tier3' | 'tier4';
+
+  dresscode?: string;
+  cost?: number;
+  currency?: string;
+
+  rsvp: {
+    userId: string;
+    status: 'attending' | 'maybe' | 'declined';
+    plusOne?: boolean;
+    timestamp: Date;
+  }[];
+
+  images: string[];
+  createdAt: Date;
 }

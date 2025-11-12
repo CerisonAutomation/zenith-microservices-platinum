@@ -1,14 +1,15 @@
-import { Grid3x3, MessageCircle, Heart, User, Wallet } from "lucide-react";
+import { Grid3x3, MessageCircle, Heart, User, Wallet, Crown } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface BottomNavProps {
-  activeTab: "explore" | "messages" | "favorites" | "profile" | "wallet";
-  onTabChange: (tab: "explore" | "messages" | "favorites" | "profile" | "wallet") => void;
+  activeTab: "explore" | "messages" | "favorites" | "profile" | "wallet" | "platinum";
+  onTabChange: (tab: "explore" | "messages" | "favorites" | "profile" | "wallet" | "platinum") => void;
 }
 
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const tabs = [
     { id: "explore" as const, icon: Grid3x3, label: "Explore" },
+    { id: "platinum" as const, icon: Crown, label: "Platinum", isPremium: true },
     { id: "messages" as const, icon: MessageCircle, label: "Messages" },
     { id: "favorites" as const, icon: Heart, label: "Favorites" },
     { id: "profile" as const, icon: User, label: "Profile" },
@@ -23,6 +24,8 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             
+            const isPlatinum = tab.id === "platinum";
+
             return (
               <button
                 key={tab.id}
@@ -32,18 +35,30 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl"
+                    className={`absolute inset-0 rounded-2xl ${
+                      isPlatinum
+                        ? "bg-gradient-to-r from-amber-500/20 to-yellow-600/20"
+                        : "bg-gradient-to-r from-purple-500/20 to-pink-500/20"
+                    }`}
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
                 <Icon
                   className={`w-6 h-6 relative z-10 transition-colors ${
-                    isActive ? "text-pink-400" : "text-gray-400"
+                    isActive
+                      ? isPlatinum
+                        ? "text-amber-400"
+                        : "text-pink-400"
+                      : "text-gray-400"
                   }`}
                 />
                 <span
                   className={`text-xs relative z-10 transition-colors ${
-                    isActive ? "text-pink-400 font-medium" : "text-gray-400"
+                    isActive
+                      ? isPlatinum
+                        ? "text-amber-400 font-medium"
+                        : "text-pink-400 font-medium"
+                      : "text-gray-400"
                   }`}
                 >
                   {tab.label}

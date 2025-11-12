@@ -93,7 +93,7 @@ export const DATING_APP_CONFIG = {
     { id: 'networking', label: 'Networking', description: 'Professional/social networking' },
   ],
 
-  // Free vs Premium Features
+  // Free vs Premium vs Platinum Features
   features: {
     free: {
       swipesPerDay: 5,
@@ -123,26 +123,97 @@ export const DATING_APP_CONFIG = {
       incognitoMode: true,
       unlimitedRewinds: true,
     },
+    platinum: {
+      // All premium features plus:
+      swipesPerDay: -1,
+      photosVisible: -1,
+      canMessage: true,
+      canSeeWhoLiked: true,
+      canUseFilters: true,
+      canSeeOnlineStatus: true,
+      canViewGridMode: true,
+      canAccessHiddenAlbums: true,
+      canBook: true,
+      adFree: true,
+      prioritySupport: true,
+      verifiedBadge: true,
+      incognitoMode: true,
+      unlimitedRewinds: true,
+      // Platinum exclusive features:
+      ageGate: 30, // Minimum age to access platinum features
+      exclusiveSeniorDiscovery: true,
+      professionalVerification: true, // Verify income, profession, background
+      conciergeBooking: true, // Personal concierge for date planning
+      privateJetCoordination: false, // Future feature
+      luxuryVenueRecommendations: true,
+      backgroundScreening: true,
+      advancedAIMatching: true,
+      videoCallVerification: true,
+      executiveNetworking: true, // Business networking events
+      platinumBadge: true,
+      priorityInSearch: true, // Always appear first
+      unlimitedVideoIntros: true,
+      personalMatchmaker: true, // Dedicated matchmaker service
+      travelConcierge: true,
+      exclusiveEvents: true, // Access to platinum-only events
+      enhancedPrivacy: true, // Military-grade encryption
+    },
   },
 
   // Pricing Tiers
   pricing: {
-    monthly: {
-      price: 19.99,
-      currency: 'USD',
-      interval: 'month',
+    // Premium Pricing
+    premium: {
+      monthly: {
+        price: 19.99,
+        currency: 'USD',
+        interval: 'month',
+      },
+      quarterly: {
+        price: 49.99,
+        currency: 'USD',
+        interval: '3 months',
+        savings: '17%',
+      },
+      yearly: {
+        price: 149.99,
+        currency: 'USD',
+        interval: 'year',
+        savings: '37%',
+      },
     },
-    quarterly: {
-      price: 49.99,
-      currency: 'USD',
-      interval: '3 months',
-      savings: '17%',
-    },
-    yearly: {
-      price: 149.99,
-      currency: 'USD',
-      interval: 'year',
-      savings: '37%',
+    // Platinum Pricing (Senior/Executive Level)
+    platinum: {
+      monthly: {
+        price: 99.99,
+        currency: 'USD',
+        interval: 'month',
+        features: [
+          'All Premium features',
+          'Exclusive 30+ community access',
+          'Professional verification',
+          'Personal concierge service',
+          'Luxury venue recommendations',
+          'Background screening',
+          'AI-powered matching',
+          'Executive networking events',
+          'Platinum badge',
+          'Priority in search',
+          'Personal matchmaker',
+        ],
+      },
+      quarterly: {
+        price: 249.99,
+        currency: 'USD',
+        interval: '3 months',
+        savings: '17%',
+      },
+      yearly: {
+        price: 899.99,
+        currency: 'USD',
+        interval: 'year',
+        savings: '25%',
+      },
     },
   },
 
@@ -173,8 +244,41 @@ export const DATING_APP_CONFIG = {
   // Age Verification
   ageVerification: {
     minimumAge: 18,
+    minimumPlatinumAge: 30, // Platinum tier minimum age
     requiresIDVerification: true,
     requiresPhotoVerification: true,
+  },
+
+  // Professional Verification (Platinum Tier)
+  professionalVerification: {
+    categories: [
+      { id: 'executive', label: 'C-Suite Executive', requiredDocs: ['LinkedIn', 'Business Card', 'Company Verification'] },
+      { id: 'entrepreneur', label: 'Entrepreneur', requiredDocs: ['Business Registration', 'LinkedIn', 'Revenue Proof'] },
+      { id: 'medical', label: 'Medical Professional', requiredDocs: ['Medical License', 'Hospital Credentials'] },
+      { id: 'legal', label: 'Legal Professional', requiredDocs: ['Bar License', 'Firm Verification'] },
+      { id: 'finance', label: 'Finance Professional', requiredDocs: ['Series Licenses', 'Firm Verification'] },
+      { id: 'tech', label: 'Tech Executive', requiredDocs: ['LinkedIn', 'GitHub/Portfolio', 'Company Verification'] },
+      { id: 'entertainment', label: 'Entertainment Industry', requiredDocs: ['IMDB/Credits', 'Agent Verification'] },
+      { id: 'real_estate', label: 'Real Estate', requiredDocs: ['License', 'Brokerage Verification'] },
+      { id: 'academic', label: 'Academic/Professor', requiredDocs: ['PhD Certificate', 'University Email'] },
+      { id: 'creative', label: 'Creative Director', requiredDocs: ['Portfolio', 'Client References'] },
+    ],
+    incomeVerification: {
+      tiers: [
+        { id: 'tier1', label: '$100k - $250k', range: [100000, 250000] },
+        { id: 'tier2', label: '$250k - $500k', range: [250000, 500000] },
+        { id: 'tier3', label: '$500k - $1M', range: [500000, 1000000] },
+        { id: 'tier4', label: '$1M+', range: [1000000, 999999999] },
+      ],
+      verificationMethods: ['tax_returns', 'pay_stubs', 'bank_statements', 'accountant_letter'],
+    },
+    backgroundCheck: {
+      criminal: true,
+      creditCheck: false, // Optional
+      employmentVerification: true,
+      educationVerification: true,
+      socialMediaVerification: true,
+    },
   },
 
   // GDPR & Privacy
