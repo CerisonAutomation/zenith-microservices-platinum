@@ -14,7 +14,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { createClient, isSupabaseConfigured } from '../utils/supabase/client';
 import { api, authAPI } from '../lib/api';
 import { mockUser } from '../lib/mockData';
 import { useToast } from '../components/ui/use-toast';
@@ -80,8 +80,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // 🔐 PRODUCTION MODE - Use real Supabase authentication
+      // 🔐 PRODUCTION MODE - Use real Supabase authentication with SSR support
       console.log('🔐 Running in PRODUCTION MODE with Supabase authentication');
+
+      // Create browser client with proper SSR cookie handling
+      const supabase = createClient();
+      if (!supabase) {
+        console.error('Failed to create Supabase client');
+        setLoading(false);
+        return;
+      }
 
       try {
         // Get initial session
@@ -151,6 +159,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const supabase = createClient();
+    if (!supabase) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'Authentication is not properly configured.',
+      });
+      return;
+    }
+
     try {
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
@@ -180,6 +198,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({
         title: 'Demo Mode',
         description: 'Sign up is disabled in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
+    const supabase = createClient();
+    if (!supabase) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'Authentication is not properly configured.',
       });
       return;
     }
@@ -221,6 +249,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const supabase = createClient();
+    if (!supabase) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'Authentication is not properly configured.',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -244,6 +282,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({
         title: 'Demo Mode',
         description: 'OAuth is disabled in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
+    const supabase = createClient();
+    if (!supabase) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'Authentication is not properly configured.',
       });
       return;
     }
@@ -272,6 +320,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const supabase = createClient();
+    if (!supabase) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'Authentication is not properly configured.',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
@@ -294,6 +352,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({
         title: 'Demo Mode',
         description: 'Password update is disabled in demo mode. Configure Supabase for real authentication.',
+      });
+      return;
+    }
+
+    const supabase = createClient();
+    if (!supabase) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'Authentication is not properly configured.',
       });
       return;
     }
