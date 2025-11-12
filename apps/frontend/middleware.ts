@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { updateSession } from './src/utils/supabase/middleware'
 
 const rateLimitMap = new Map<string, { count: number; startTime: number }>()
 
-export function middleware(request: NextRequest) {
-  const response = NextResponse.next()
+export async function middleware(request: NextRequest) {
+  // IMPORTANT: Update Supabase session first (handles auth token refresh)
+  let response = await updateSession(request)
 
   // Security Headers
   response.headers.set('X-Frame-Options', 'DENY')
@@ -53,10 +55,13 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/api/:path*',
-    '/auth/:path*',
-    '/chat/:path*',
-    '/explore/:path*',
-    '/profile/:path*'
-  ]
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
