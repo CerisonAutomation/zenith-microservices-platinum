@@ -1,0 +1,64 @@
+name: Capture Page Screenshots
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+      - main
+      - develop
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: apps/frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Next.js app
+        working-directory: apps/frontend
+        run: npm run build
+
+      - name: Start Next.js app
+        working-directory: apps/frontend
+        run: npm run start &
+
+      - name: Wait for app to be ready
+        run: |
+          echo "Waiting for app to start..."
+          timeout 60 bash -c 'until curl -f http://localhost:3000 > /dev/null 2>&1; do sleep 2; done'
+          echo "App is ready!"
+
+      - name: Capture screenshots
+        working-directory: apps/frontend
+        run: node scripts/capture-screenshots.js
+
+      - name: Commit screenshots
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add screenshots/
+          git diff --staged --quiet || git commit -m "📸 Update page screenshots [skip ci]"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
