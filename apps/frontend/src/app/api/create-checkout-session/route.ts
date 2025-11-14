@@ -4,6 +4,8 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { rateLimit, RateLimitConfig, createRateLimitResponse } from '@/utils/rate-limit';
 
+import { APILogger } from '@/utils/api-logger';
+import { apiError, requireEnv } from '@/utils/api-helpers';
 // Node.js runtime required for Stripe SDK
 export const runtime = 'nodejs';
 
@@ -25,6 +27,7 @@ const plans = {
 };
 
 export async function POST(req: NextRequest) {
+const logger = APILogger.scope('create-checkout-session');
   try {
     // Apply strict rate limiting for payment endpoints
     const { success, headers: rateLimitHeaders, result } = await rateLimit(req, RateLimitConfig.payment);
@@ -129,7 +132,7 @@ export async function POST(req: NextRequest) {
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Stripe checkout API error:', error);
+    logger.error('Stripe checkout API error:', error);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error'

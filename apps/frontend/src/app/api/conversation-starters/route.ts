@@ -5,6 +5,8 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { rateLimit, RateLimitConfig, createRateLimitResponse } from '@/utils/rate-limit';
 
+import { APILogger } from '@/utils/api-logger';
+import { apiError, apiNotFound, requireEnv } from '@/utils/api-helpers';
 // Edge runtime for optimal performance
 export const runtime = 'edge';
 
@@ -22,6 +24,7 @@ interface Profile {
 }
 
 export async function POST(req: NextRequest) {
+const logger = APILogger.scope('conversation-starters');
   try {
     // Apply rate limiting for AI endpoints
     const { success, headers: rateLimitHeaders, result } = await rateLimit(req, RateLimitConfig.ai);
@@ -116,7 +119,7 @@ Example: ["Question 1", "Question 2", "Question 3"]`
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Conversation starters API error:', error);
+    logger.error('Conversation starters API error:', error);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Internal server error'

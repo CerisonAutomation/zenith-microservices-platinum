@@ -3,6 +3,8 @@ import { streamText, convertToCoreMessages } from 'ai';
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest } from 'next/server';
 import { rateLimit, RateLimitConfig, createRateLimitResponse } from '@/utils/rate-limit';
+import { APILogger } from '@/utils/api-logger';
+import { apiError, requireEnv } from '@/utils/api-helpers';
 
 // Edge runtime for optimal performance
 export const runtime = 'edge';
@@ -10,21 +12,24 @@ export const runtime = 'edge';
 // Maximum duration for streaming response (60 seconds for Edge)
 export const maxDuration = 60;
 
+const logger = APILogger.scope('chat');
+
 export async function POST(req: NextRequest) {
   try {
     // Apply rate limiting for chat endpoints
     const { success, headers: rateLimitHeaders, result } = await rateLimit(req, RateLimitConfig.chat);
 
     if (!success) {
+      logger.warn('Rate limit exceeded');
       return createRateLimitResponse(result);
     }
 
     // Verify OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+    try {
+      requireEnv('OPENAI_API_KEY', 'Chat API');
+    } catch (error) {
+      logger.error('OpenAI API key not configured', error);
+      return apiError('Service configuration error', 500);
     }
 
     // Authenticate user with Supabase
@@ -32,21 +37,23 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
+      logger.warn('Unauthorized access attempt');
+      return apiError('Unauthorized', 401);
     }
 
     // Parse request body
     const { messages, conversationId, matchId } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
-      return new Response(
-        JSON.stringify({ error: 'Messages array is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      logger.warn('Invalid request: missing messages array');
+      return apiError('Messages array is required', 400);
     }
+
+    logger.info('Chat request received', {
+      userId: user.id,
+      messageCount: messages.length,
+      hasConversationId: Boolean(conversationId)
+    });
 
     // Stream the AI response using Vercel AI SDK
     const result = await streamText({
@@ -71,21 +78,23 @@ export async function POST(req: NextRequest) {
               }
             });
           } catch (dbError) {
-            console.error('Failed to store AI message:', dbError);
+            logger.error('Failed to store AI message in database', dbError, {
+              conversationId,
+              userId: user.id
+            });
           }
         }
       }
     });
 
     // Return streaming response
+    logger.info('Chat streaming response initiated');
     return result.toDataStreamResponse();
   } catch (error) {
-    console.error('Chat API error:', error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal server error'
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    logger.error('Chat API error', error);
+    return apiError(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }
