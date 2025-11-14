@@ -38,7 +38,7 @@ interface Profile {
   interests: string[];
   isPremium: boolean;
   verified: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface Notification {
@@ -49,7 +49,7 @@ interface Notification {
   timestamp: string;
   read: boolean;
   avatar?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface AppContextType {
@@ -84,9 +84,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!configured) {
           // Demo mode: use mock data
           console.log('🎭 AppContext: Using mock data in demo mode');
-          setCurrentProfile(mockUser as any);
-          setProfiles(mockProfiles as any);
-          setNotifications(mockNotifications as any);
+          setCurrentProfile(mockUser as Profile);
+          setProfiles(mockProfiles as Profile[]);
+          setNotifications(mockNotifications as Notification[]);
         } else {
           // Production mode: load from backend
           console.log('🔐 AppContext: Loading data from backend');

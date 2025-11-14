@@ -19,12 +19,21 @@ import { api, authAPI } from '../lib/api';
 import { mockUser } from '../lib/mockData';
 import { useToast } from '../components/ui/use-toast';
 
+interface UserMetadata {
+  full_name?: string;
+  avatar_url?: string;
+  age?: number;
+  gender?: string;
+  bio?: string;
+  [key: string]: unknown;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, metadata?: any) => Promise<void>;
+  signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithOAuth: (provider: 'google' | 'facebook' | 'apple') => Promise<void>;
   resetPassword: (email: string) => Promise<void>;

@@ -41,7 +41,12 @@ export interface ExtendedProfile {
   } | null;
   availability?: {
     meetNow?: boolean;
-    schedule?: any[];
+    schedule?: Array<{
+      day: string;
+      startTime: string;
+      endTime: string;
+      available: boolean;
+    }>;
     weekdays?: string[];
     weekends?: boolean;
   };
@@ -70,7 +75,12 @@ export interface ExtendedProfile {
     lookingFor?: string[];
     kinks?: string[];
     roles?: string[];
-    bookingPreferences?: any;
+    bookingPreferences?: {
+      duration?: number;
+      advanceNotice?: number;
+      locationPreference?: 'host' | 'guest' | 'both';
+      instantBooking?: boolean;
+    };
     tribes?: string[];
   };
 }
@@ -101,7 +111,12 @@ export interface Booking {
   createdAt?: Date;
   kinks?: string[];
   roles?: string[];
-  bookingPreferences?: any;
+  bookingPreferences?: {
+    duration?: number;
+    advanceNotice?: number;
+    locationPreference?: 'host' | 'guest' | 'both';
+    instantBooking?: boolean;
+  };
 }
 
 export interface ExtendedNotification extends Omit<Notification, 'created_at' | 'is_read'> {

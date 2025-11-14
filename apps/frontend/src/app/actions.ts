@@ -112,7 +112,7 @@ export async function updateProfile(
  * Send message
  */
 export async function sendMessage(
-  prevState: any,
+  prevState: ActionResponse<{ id: string }> | null,
   formData: FormData
 ): Promise<ActionResponse<{ id: string }>> {
   try {

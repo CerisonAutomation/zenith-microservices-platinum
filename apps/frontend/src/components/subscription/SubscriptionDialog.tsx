@@ -59,8 +59,24 @@ export default function SubscriptionDialog({ open, onOpenChange }: SubscriptionD
       if (process.env.NODE_ENV === 'development') {
         console.error('VITE_STRIPE_PUBLIC_KEY is not configured');
       }
-      // TODO: Show user-friendly error message
-      throw new Error('Payment system is not properly configured. Please contact support.');
+
+      // Show user-friendly error toast notification
+      if (typeof window !== 'undefined') {
+        // Use a toast notification if available, otherwise fallback to alert
+        const errorMessage = 'Payment system is temporarily unavailable. Please try again later or contact support.';
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('show-toast', {
+            detail: {
+              title: 'Payment Error',
+              description: errorMessage,
+              variant: 'destructive'
+            }
+          }));
+        } else {
+          alert(errorMessage);
+        }
+      }
+      return;
     }
 
     // SECURITY: Only load Stripe with valid production key

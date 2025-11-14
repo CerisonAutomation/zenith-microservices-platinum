@@ -1,6 +1,14 @@
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
+interface CookieOptions {
+  maxAge?: number;
+  path?: string;
+  sameSite?: 'strict' | 'lax' | 'none';
+  secure?: boolean;
+  domain?: string;
+}
+
 /**
  * Client-side Supabase client for use in Client Components
  * Uses @supabase/ssr for proper SSR support with Next.js App Router
@@ -26,7 +34,7 @@ export function createClient() {
         const parts = value.split(`; ${name}=`)
         if (parts.length === 2) return parts.pop()?.split(';').shift()
       },
-      set(name: string, value: string, options: any) {
+      set(name: string, value: string, options: CookieOptions) {
         // Client-side cookie setting
         if (typeof document === 'undefined') return
 
@@ -47,7 +55,7 @@ export function createClient() {
 
         document.cookie = cookie
       },
-      remove(name: string, options: any) {
+      remove(name: string, options: CookieOptions) {
         // Client-side cookie removal
         if (typeof document === 'undefined') return
         document.cookie = `${name}=; path=${options?.path || '/'}; max-age=0`

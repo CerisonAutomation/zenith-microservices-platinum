@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { Request, Response, NextFunction } from 'express';
 
 // Common validation schemas
 export const userSchema = Joi.object({
@@ -44,12 +45,12 @@ export const searchFiltersSchema = Joi.object({
 
 // Validation middleware
 export const validateBody = (schema: Joi.ObjectSchema) => {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     const { error } = schema.validate(req.body);
     if (error) {
       return res.status(400).json({
         error: 'Validation failed',
-        details: error.details.map((detail: any) => detail.message)
+        details: error.details.map((detail: Joi.ValidationErrorItem) => detail.message)
       });
     }
     next();
@@ -57,12 +58,12 @@ export const validateBody = (schema: Joi.ObjectSchema) => {
 };
 
 export const validateQuery = (schema: Joi.ObjectSchema) => {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     const { error } = schema.validate(req.query);
     if (error) {
       return res.status(400).json({
         error: 'Query validation failed',
-        details: error.details.map((detail: any) => detail.message)
+        details: error.details.map((detail: Joi.ValidationErrorItem) => detail.message)
       });
     }
     next();
