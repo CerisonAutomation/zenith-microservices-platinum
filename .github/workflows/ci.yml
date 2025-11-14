@@ -16,6 +16,9 @@ env:
   TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
   NODE_VERSION: '20'
   PNPM_VERSION: '8'
+  REGISTRY: ghcr.io
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}/zenith-frontend
+  IMAGE_NAME_BACKEND: ${{ github.repository }}/zenith-backend
 
 jobs:
   # ══════════════════════════════════════════
@@ -118,7 +121,84 @@ jobs:
           fail_ci_if_error: false
 
   # ══════════════════════════════════════════
-  # 3. BUILD & VALIDATE
+  # 3. DOCKER BUILD & PUSH
+  # ══════════════════════════════════════════
+  docker-build:
+    name: 🐳 Docker Build & Push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [quality, test]
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Extract metadata (Frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 🏷️ Extract metadata (Backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🐳 Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: 🐳 Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ══════════════════════════════════════════
+  # 4. BUILD & VALIDATE
   # ══════════════════════════════════════════
   build:
     name: 🏗️ Build & Validate
@@ -166,7 +246,7 @@ jobs:
         continue-on-error: true
 
   # ══════════════════════════════════════════
-  # 4. E2E TESTING (Playwright)
+  # 5. E2E TESTING (Playwright)
   # ══════════════════════════════════════════
   e2e:
     name: 🎭 E2E Tests (Playwright)
@@ -211,7 +291,54 @@ jobs:
           retention-days: 7
 
   # ══════════════════════════════════════════
-  # 5. SUPABASE MIGRATIONS (Staging)
+  # 6. KUBERNETES DEPLOYMENT (Staging)
+  # ══════════════════════════════════════════
+  deploy-k8s-staging:
+    name: ☸️ Deploy to Kubernetes (Staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [docker-build, build, e2e]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.bookingaboyfriend.app
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      - name: 🔧 Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: 🚀 Deploy with Helm
+        run: |
+          helm upgrade --install zenith-staging ./infrastructure/helm/zenith \
+            --namespace zenith-staging \
+            --create-namespace \
+            --set global.environment=staging \
+            --set frontend.image.tag=${{ github.sha }} \
+            --set backend.image.tag=${{ github.sha }} \
+            --set secrets.supabase.url=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }} \
+            --set secrets.supabase.anonKey=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }} \
+            --set secrets.supabase.serviceKey=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} \
+            --wait \
+            --timeout 10m
+
+      - name: ✅ Verify deployment
+        run: |
+          kubectl rollout status deployment/zenith-staging-frontend -n zenith-staging
+          kubectl rollout status deployment/zenith-staging-backend -n zenith-staging
+
+  # ══════════════════════════════════════════
+  # 7. SUPABASE MIGRATIONS (Staging)
   # ══════════════════════════════════════════
   migrate-staging:
     name: 🗄️ Database Migrations (Staging)
@@ -241,7 +368,7 @@ jobs:
         run: supabase db diff
 
   # ══════════════════════════════════════════
-  # 6. DEPLOY TO VERCEL (Preview)
+  # 8. DEPLOY TO VERCEL (Preview)
   # ══════════════════════════════════════════
   deploy-preview:
     name: 🌐 Deploy Preview (Vercel)
@@ -274,16 +401,65 @@ jobs:
             })
 
   # ══════════════════════════════════════════
-  # 7. DEPLOY TO PRODUCTION
+  # 9. DEPLOY TO PRODUCTION (Kubernetes)
+  # ══════════════════════════════════════════
+  deploy-k8s-production:
+    name: ☸️ Deploy to Kubernetes (Production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [docker-build, build, e2e, migrate-staging]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://bookingaboyfriend.app
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: 🔧 Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: 🚀 Deploy with Helm
+        run: |
+          helm upgrade --install zenith ./infrastructure/helm/zenith \
+            --namespace zenith-production \
+            --create-namespace \
+            --set global.environment=production \
+            --set frontend.image.tag=${{ github.sha }} \
+            --set backend.image.tag=${{ github.sha }} \
+            --set frontend.replicaCount=5 \
+            --set backend.replicaCount=5 \
+            --set secrets.supabase.url=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }} \
+            --set secrets.supabase.anonKey=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }} \
+            --set secrets.supabase.serviceKey=${{ secrets.SUPABASE_PRODUCTION_SERVICE_KEY }} \
+            --wait \
+            --timeout 15m
+
+      - name: ✅ Verify deployment
+        run: |
+          kubectl rollout status deployment/zenith-frontend -n zenith-production
+          kubectl rollout status deployment/zenith-backend -n zenith-production
+
+  # ══════════════════════════════════════════
+  # 10. DEPLOY TO PRODUCTION (Vercel Backup)
   # ══════════════════════════════════════════
   deploy-production:
-    name: 🚀 Deploy Production
+    name: 🚀 Deploy Production (Vercel)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [build, e2e, migrate-staging]
     if: github.ref == 'refs/heads/main'
     environment:
-      name: production
+      name: production-vercel
       url: https://bookingaboyfriend.app
 
     steps:
@@ -340,7 +516,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   # ══════════════════════════════════════════
-  # 8. SECURITY SCANNING
+  # 11. SECURITY SCANNING
   # ══════════════════════════════════════════
   security:
     name: 🔒 Security Scan
@@ -373,7 +549,7 @@ jobs:
           path: reports/
 
   # ══════════════════════════════════════════
-  # 9. PERFORMANCE TESTING
+  # 12. PERFORMANCE TESTING
   # ══════════════════════════════════════════
   performance:
     name: ⚡ Performance Testing
@@ -403,7 +579,7 @@ jobs:
         continue-on-error: true
 
   # ══════════════════════════════════════════
-  # 10. NOTIFICATION & REPORTING
+  # 13. NOTIFICATION & REPORTING
   # ══════════════════════════════════════════
   notify:
     name: 📢 Notify Results

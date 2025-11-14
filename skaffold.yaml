@@ -1,0 +1,102 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: zenith-microservices
+
+build:
+  artifacts:
+  - image: ghcr.io/ceriautomation/zenith-frontend
+    context: .
+    docker:
+      dockerfile: apps/frontend/Dockerfile
+    sync:
+      manual:
+      - src: "apps/frontend/src/**/*.{ts,tsx,js,jsx}"
+        dest: .
+  - image: ghcr.io/ceriautomation/zenith-backend
+    context: .
+    docker:
+      dockerfile: apps/backend/Dockerfile
+    sync:
+      manual:
+      - src: "apps/backend/src/**/*.{ts,js}"
+        dest: .
+
+  tagPolicy:
+    gitCommit:
+      variant: AbbrevCommitSha
+
+  local:
+    push: false
+    useBuildkit: true
+    concurrency: 2
+
+manifests:
+  helm:
+    releases:
+    - name: zenith
+      chartPath: infrastructure/helm/zenith
+      namespace: zenith-production
+      createNamespace: true
+      valuesFiles:
+      - infrastructure/helm/zenith/values.yaml
+      setValues:
+        frontend.image.tag: ghcr.io/ceriautomation/zenith-frontend
+        backend.image.tag: ghcr.io/ceriautomation/zenith-backend
+
+deploy:
+  helm:
+    releases:
+    - name: zenith
+      chartPath: infrastructure/helm/zenith
+      namespace: zenith-production
+      createNamespace: true
+      wait: true
+      recreatePods: false
+      upgradeOnChange: true
+
+portForward:
+- resourceType: service
+  resourceName: zenith-frontend
+  namespace: zenith-production
+  port: 80
+  localPort: 3000
+- resourceType: service
+  resourceName: zenith-backend
+  namespace: zenith-production
+  port: 80
+  localPort: 4000
+- resourceType: service
+  resourceName: zenith-redis
+  namespace: zenith-production
+  port: 6379
+  localPort: 6379
+
+profiles:
+- name: development
+  activation:
+  - command: dev
+  build:
+    artifacts:
+    - image: ghcr.io/ceriautomation/zenith-frontend
+      docker:
+        target: deps
+    - image: ghcr.io/ceriautomation/zenith-backend
+      docker:
+        target: deps
+
+- name: production
+  build:
+    tagPolicy:
+      gitCommit:
+        variant: Tags
+    local:
+      push: true
+  deploy:
+    helm:
+      releases:
+      - name: zenith
+        setValues:
+          global.environment: production
+          frontend.replicaCount: 5
+          backend.replicaCount: 5

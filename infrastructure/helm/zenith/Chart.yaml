@@ -1,0 +1,30 @@
+apiVersion: v2
+name: zenith
+description: Zenith - Elite Dating Platform Helm Chart
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - zenith
+  - dating
+  - microservices
+  - kubernetes
+
+maintainers:
+  - name: Zenith Team
+    email: team@bookingaboyfriend.app
+
+dependencies:
+  - name: redis
+    version: "17.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: nginx-ingress-controller
+    version: "9.x.x"
+    repository: "https://kubernetes.github.io/ingress-nginx"
+    condition: ingress.enabled
+  - name: cert-manager
+    version: "1.x.x"
+    repository: "https://charts.jetstack.io"
+    condition: certManager.enabled
