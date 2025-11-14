@@ -1,6 +1,7 @@
 import { Crown, Check, Zap, Star } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Card, Badge } from "@zenith/ui-components";
 import { loadStripe } from "@stripe/stripe-js";
+import { useCallback } from "react";
 
 interface SubscriptionDialogProps {
   open: boolean;
@@ -48,7 +49,7 @@ const plans = [
 ];
 
 export default function SubscriptionDialog({ open, onOpenChange }: SubscriptionDialogProps) {
-  const handleSubscribe = async (planId: string) => {
+  const handleSubscribe = useCallback(async (planId: string) => {
     // SECURITY FIX #3: Removed hardcoded test key fallback
     // Stripe key must be properly configured in environment variables
     const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -78,7 +79,7 @@ export default function SubscriptionDialog({ open, onOpenChange }: SubscriptionD
     // stripe.redirectToCheckout({ sessionId: session.id });
 
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
