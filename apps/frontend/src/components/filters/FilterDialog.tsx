@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, Label, Button, Badge 
 import { Slider } from "../ui/slider";
 import { useState, useCallback } from "react";
 import { X } from "lucide-react";
+import { DEFAULT_MIN_AGE, DEFAULT_MAX_AGE, MIN_AGE, MAX_AGE, DEFAULT_DISTANCE, MIN_DISTANCE, MAX_DISTANCE, TRIBES } from "@/constants/app";
 
 interface FilterDialogProps {
   open: boolean;
@@ -9,13 +10,9 @@ interface FilterDialogProps {
 }
 
 export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) {
-  const [ageRange, setAgeRange] = useState([18, 50]);
-  const [distance, setDistance] = useState([10]);
+  const [ageRange, setAgeRange] = useState([DEFAULT_MIN_AGE, DEFAULT_MAX_AGE]);
+  const [distance, setDistance] = useState([DEFAULT_DISTANCE]);
   const [selectedTribes, setSelectedTribes] = useState<string[]>([]);
-
-  const tribes = [
-    "Bear", "Otter", "Twink", "Jock", "Geek", "Leather", "Daddy", "Poz", "Clean-Cut", "Rugged"
-  ];
 
   const toggleTribe = useCallback((tribe: string) => {
     setSelectedTribes(prev =>
@@ -24,8 +21,8 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
   }, []);
 
   const handleReset = useCallback(() => {
-    setAgeRange([18, 50]);
-    setDistance([10]);
+    setAgeRange([DEFAULT_MIN_AGE, DEFAULT_MAX_AGE]);
+    setDistance([DEFAULT_DISTANCE]);
     setSelectedTribes([]);
   }, []);
 
@@ -51,8 +48,8 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
             <Slider
               value={ageRange}
               onValueChange={setAgeRange}
-              min={18}
-              max={80}
+              min={MIN_AGE}
+              max={MAX_AGE}
               step={1}
               className="w-full"
             />
@@ -67,8 +64,8 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
             <Slider
               value={distance}
               onValueChange={setDistance}
-              min={1}
-              max={100}
+              min={MIN_DISTANCE}
+              max={MAX_DISTANCE}
               step={1}
               className="w-full"
             />
@@ -78,7 +75,7 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
           <div className="space-y-3">
             <Label className="text-base">Tribes</Label>
             <div className="flex flex-wrap gap-2">
-              {tribes.map((tribe) => (
+              {TRIBES.map((tribe) => (
                 <Badge
                   key={tribe}
                   variant={selectedTribes.includes(tribe) ? "default" : "outline"}
