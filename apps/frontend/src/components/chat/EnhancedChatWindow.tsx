@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/utils/supabase/client'
 import { MessageReactions } from './MessageReactions'
 import { VoiceRecorder } from './VoiceRecorder'
 import { TypingIndicator, useTypingIndicator } from './TypingIndicator'

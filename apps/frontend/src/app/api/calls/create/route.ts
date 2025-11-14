@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/utils/supabase/server'
 
 // Create a new video/audio call room using Daily.co
 export async function POST(request: NextRequest) {
