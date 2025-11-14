@@ -1,7 +1,7 @@
 # 🎯 SUPABASE SETUP - NEXT STEPS
 
-**Your Supabase Project:** `dphqeifuxcimdhnqeomc`
-**Project URL:** https://dphqeifuxcimdhnqeomc.supabase.co
+**Your Supabase Project:** `YOUR_PROJECT_REF`
+**Project URL:** https://YOUR_PROJECT_REF.supabase.co
 
 ---
 
@@ -10,16 +10,16 @@
 ### Step 1: Get Your Supabase API Keys ⭐
 
 1. **Open Supabase Dashboard:**
-   https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc
+   https://supabase.com/dashboard/project/YOUR_PROJECT_REF
 
 2. **Navigate to Settings → API**
-   Direct link: https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/settings/api
+   Direct link: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/settings/api
 
 3. **Copy these keys:**
 
    **Project URL:**
    ```
-   https://dphqeifuxcimdhnqeomc.supabase.co
+   https://YOUR_PROJECT_REF.supabase.co
    ```
 
    **anon public key:** (Safe to use in browser)
@@ -34,7 +34,7 @@
 
 4. **Add to `.env.local`:**
    ```bash
-   NEXT_PUBLIC_SUPABASE_URL=https://dphqeifuxcimdhnqeomc.supabase.co
+   NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
    ```
@@ -55,7 +55,7 @@ npm install -g supabase
 supabase login
 
 # Link to your project
-supabase link --project-ref dphqeifuxcimdhnqeomc
+supabase link --project-ref YOUR_PROJECT_REF
 
 # Push migrations
 supabase db push
@@ -63,7 +63,7 @@ supabase db push
 
 **Option B: Manual Migration (via Dashboard)**
 
-1. Go to: https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/editor
+1. Go to: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/editor
 2. Click "SQL Editor"
 3. Copy content from `supabase/migrations/20250114000000_add_missing_features.sql`
 4. Paste and click "Run"
@@ -72,7 +72,7 @@ supabase db push
 
 ```bash
 # Get your database password from Supabase Dashboard → Settings → Database
-psql "postgresql://postgres:[YOUR_PASSWORD]@db.dphqeifuxcimdhnqeomc.supabase.co:5432/postgres" < supabase/migrations/20250114000000_add_missing_features.sql
+psql "postgresql://postgres:[YOUR_PASSWORD]@db.YOUR_PROJECT_REF.supabase.co:5432/postgres" < supabase/migrations/20250114000000_add_missing_features.sql
 ```
 
 ---
@@ -80,7 +80,7 @@ psql "postgresql://postgres:[YOUR_PASSWORD]@db.dphqeifuxcimdhnqeomc.supabase.co:
 ### Step 3: Set Up Storage Buckets
 
 **Go to Storage:**
-https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/storage/buckets
+https://supabase.com/dashboard/project/YOUR_PROJECT_REF/storage/buckets
 
 **Create these buckets:**
 
@@ -146,7 +146,7 @@ https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/storage/buckets
 ### Step 4: Configure Authentication
 
 **Go to Authentication:**
-https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/auth/users
+https://supabase.com/dashboard/project/YOUR_PROJECT_REF/auth/users
 
 **Enable Auth Providers:**
 
@@ -157,7 +157,7 @@ https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/auth/users
 2. **Google OAuth (Optional but recommended)**
    - Settings → Auth → Providers → Google
    - Add your Google Client ID & Secret
-   - Authorized redirect URL: `https://dphqeifuxcimdhnqeomc.supabase.co/auth/v1/callback`
+   - Authorized redirect URL: `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`
 
 3. **Facebook OAuth (Optional)**
    - Settings → Auth → Providers → Facebook
@@ -262,7 +262,7 @@ Create a test file `apps/frontend/test-db.js`:
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
-  'https://dphqeifuxcimdhnqeomc.supabase.co',
+  'https://YOUR_PROJECT_REF.supabase.co',
   'YOUR_ANON_KEY'
 )
 
@@ -293,7 +293,7 @@ node test-db.js
 
 Your migrations already include RLS policies, but verify:
 
-1. Go to: https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/auth/policies
+1. Go to: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/auth/policies
 
 2. Check that all tables have policies:
    - ✅ `profiles`
@@ -427,10 +427,10 @@ vercel
 ## 📊 MONITORING
 
 **Supabase Dashboard:**
-- Database: https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/database/tables
-- Auth: https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/auth/users
-- Storage: https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/storage/buckets
-- Logs: https://supabase.com/dashboard/project/dphqeifuxcimdhnqeomc/logs/explorer
+- Database: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/database/tables
+- Auth: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/auth/users
+- Storage: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/storage/buckets
+- Logs: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/logs/explorer
 
 **Monitor:**
 - Active users
@@ -463,7 +463,7 @@ vercel
 
 ## 🎉 YOU'RE ALL SET!
 
-Your Supabase project `dphqeifuxcimdhnqeomc` is ready to power your Booking a Boyfriend platform!
+Your Supabase project `YOUR_PROJECT_REF` is ready to power your Booking a Boyfriend platform!
 
 **Next Steps:**
 1. Complete Step 1 (Get API keys) - 5 minutes
