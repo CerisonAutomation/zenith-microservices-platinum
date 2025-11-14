@@ -1,9 +1,6 @@
 import { Video, Mic, MicOff, VideoOff, PhoneOff, Maximize, MessageSquare } from "lucide-react";
-import { Dialog, DialogContent } from "../ui/dialog";
-import { Button } from "../ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Dialog, DialogContent, Button, Avatar, AvatarFallback, AvatarImage, Card } from "@zenith/ui-components";
 import { useState } from "react";
-import { Card } from "../ui/card";
 
 interface VideoCallDialogProps {
   open: boolean;

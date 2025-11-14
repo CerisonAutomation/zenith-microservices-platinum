@@ -1,9 +1,7 @@
 import { motion } from "framer-motion";
 import { MessageCircle, Heart, Ban, Share2, MapPin, CheckCircle, Calendar, Video, Shield, Zap } from "lucide-react";
 import { useState } from "react";
-import { Dialog, DialogContent } from "../ui/dialog";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
+import { Dialog, DialogContent, Button, Badge } from "@zenith/ui-components";
 import BookingDialog from "../booking/BookingDialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel";
 

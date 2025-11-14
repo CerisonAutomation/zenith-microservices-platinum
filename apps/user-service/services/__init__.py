@@ -1,1 +1,0 @@
-"""Zenith Backend Microservices"""

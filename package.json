@@ -1,8 +1,8 @@
 {
-  "name": "booking-a-boyfriend-monorepo",
-  "version": "1.0.0",
+  "name": "zenith-microservices-platinum-monorepo",
+  "version": "1.0.0-legendary",
   "private": true,
-  "description": "Booking a Boyfriend - Elite Dating Platform with Turborepo",
+  "description": "Zenith Legendary + Infermax Apex Enterprise Dating Platform",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -15,7 +15,15 @@
     "type-check": "turbo run type-check",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "legendary:verify": "./scripts/run_legendary_framework.sh",
+    "legendary:benchmarks": "python3 scripts/zenith_legendary_framework.py",
+    "legendary:heal": "python3 scripts/zenith_legendary_framework.py",
+    "deploy:staging": "argocd app sync zenith-staging",
+    "deploy:production": "argocd app sync zenith-production",
+    "k8s:logs": "kubectl logs -f -n zenith-production",
+    "k8s:status": "kubectl get pods -n zenith-production",
+    "monitoring:dashboard": "kubectl port-forward -n monitoring svc/grafana 3001:3000"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

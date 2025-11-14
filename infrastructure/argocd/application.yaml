@@ -1,0 +1,202 @@
+# ArgoCD Application for GitOps continuous deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: zenith-production
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/CerisonAutomation/zenith-microservices-platinum.git
+    targetRevision: main
+    path: infrastructure/helm/zenith
+    helm:
+      values: |
+        global:
+          environment: production
+          domain: bookingaboyfriend.app
+
+        frontend:
+          replicaCount: 5
+          image:
+            tag: latest
+          autoscaling:
+            enabled: true
+            minReplicas: 5
+            maxReplicas: 20
+
+        backend:
+          replicaCount: 5
+          image:
+            tag: latest
+          autoscaling:
+            enabled: true
+            minReplicas: 5
+            maxReplicas: 20
+
+        redis:
+          enabled: true
+          master:
+            persistence:
+              enabled: true
+              size: 20Gi
+
+        ingress:
+          enabled: true
+          className: nginx
+          hosts:
+            - host: bookingaboyfriend.app
+              paths:
+                - path: /
+                  pathType: Prefix
+
+        monitoring:
+          enabled: true
+          prometheus:
+            enabled: true
+          grafana:
+            enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: zenith-production
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  revisionHistoryLimit: 10
+
+  # Health assessment
+  health:
+    statusDelay: 30
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jsonPointers:
+          - /spec/replicas
+
+  # Notification configuration
+  notification:
+    - when: sync_fail
+      kind: slack
+      severity: error
+    - when: sync_succeed
+      kind: slack
+      severity: info
+---
+# ArgoCD Project
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: zenith
+  namespace: argocd
+spec:
+  description: Zenith Dating Platform
+
+  sourceRepos:
+    - 'https://github.com/CerisonAutomation/zenith-microservices-platinum.git'
+    - 'https://charts.bitnami.com/bitnami'
+    - 'https://kubernetes.github.io/ingress-nginx'
+    - 'https://charts.jetstack.io'
+
+  destinations:
+    - namespace: 'zenith-*'
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: ''
+      kind: PersistentVolume
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  roles:
+    - name: admin
+      description: Admin privileges
+      policies:
+        - p, proj:zenith:admin, applications, *, zenith/*, allow
+      groups:
+        - zenith-admins
+
+    - name: developer
+      description: Developer access
+      policies:
+        - p, proj:zenith:developer, applications, get, zenith/*, allow
+        - p, proj:zenith:developer, applications, sync, zenith/*, allow
+      groups:
+        - zenith-developers
+---
+# ArgoCD Staging Application
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: zenith-staging
+  namespace: argocd
+spec:
+  project: zenith
+
+  source:
+    repoURL: https://github.com/CerisonAutomation/zenith-microservices-platinum.git
+    targetRevision: develop
+    path: infrastructure/helm/zenith
+    helm:
+      values: |
+        global:
+          environment: staging
+          domain: staging.bookingaboyfriend.app
+
+        frontend:
+          replicaCount: 2
+          autoscaling:
+            enabled: true
+            minReplicas: 2
+            maxReplicas: 5
+
+        backend:
+          replicaCount: 2
+          autoscaling:
+            enabled: true
+            minReplicas: 2
+            maxReplicas: 5
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: zenith-staging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m

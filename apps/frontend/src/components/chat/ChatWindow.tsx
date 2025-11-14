@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft, Send, Image, Mic, Smile, MoreVertical } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Input } from "../ui/input";
-import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage, Input, Button } from "@zenith/ui-components";
 import { motion } from "framer-motion";
 
 interface Chat {
