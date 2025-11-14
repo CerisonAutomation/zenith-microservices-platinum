@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ArrowLeft, Send, Image, Mic, Smile, MoreVertical } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, Input, Button } from "@zenith/ui-components";
 import { motion } from "framer-motion";
+import { MAX_MESSAGE_LENGTH } from "@/constants/app";
 
 interface Chat {
   id: string;
@@ -26,12 +27,16 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
   const [message, setMessage] = useState("");
   const [messages] = useState(mockMessages);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     if (message.trim()) {
       // Handle send message
       setMessage("");
     }
-  };
+  }, [message]);
+
+  const handleMessageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen">
@@ -43,6 +48,7 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
             size="icon"
             onClick={onBack}
             className="rounded-full hover:bg-white/10"
+            aria-label="Back to messages"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -67,6 +73,7 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
             variant="ghost"
             size="icon"
             className="rounded-full hover:bg-white/10"
+            aria-label="Chat options"
           >
             <MoreVertical className="w-5 h-5" />
           </Button>
@@ -106,6 +113,7 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
             variant="ghost"
             size="icon"
             className="rounded-full hover:bg-white/10 shrink-0"
+            aria-label="Attach image"
           >
             <Image className="w-5 h-5" />
           </Button>
@@ -114,14 +122,16 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
             <Input
               placeholder="Type a message..."
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={handleMessageChange}
               onKeyPress={(e) => e.key === "Enter" && handleSend()}
+              maxLength={MAX_MESSAGE_LENGTH}
               className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pr-10"
             />
             <Button
               variant="ghost"
               size="icon"
               className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full hover:bg-white/10"
+              aria-label="Add emoji"
             >
               <Smile className="w-5 h-5" />
             </Button>
@@ -131,6 +141,7 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
             variant="ghost"
             size="icon"
             className="rounded-full hover:bg-white/10 shrink-0"
+            aria-label="Record voice message"
           >
             <Mic className="w-5 h-5" />
           </Button>
@@ -139,6 +150,7 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
             onClick={handleSend}
             size="icon"
             className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shrink-0"
+            aria-label="Send message"
           >
             <Send className="w-5 h-5" />
           </Button>

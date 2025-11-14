@@ -1,6 +1,6 @@
 import { Camera, Edit, Settings, MapPin, Cake, Ruler, Heart, Crown, Shield, Image as ImageIcon, CheckCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, Button, Badge, Card } from "@zenith/ui-components";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import PhotoManager from "../photo/PhotoManager";
 import SubscriptionDialog from "../subscription/SubscriptionDialog";
 
@@ -12,6 +12,14 @@ export default function ProfileTab() {
   ]);
 
   const membershipTier = "free"; // or "premium" or "elite"
+
+  const handleOpenSubscription = useCallback(() => {
+    setSubscriptionOpen(true);
+  }, []);
+
+  const handleOpenPhotoManager = useCallback(() => {
+    setPhotoManagerOpen(true);
+  }, []);
 
   return (
     <div className="min-h-screen pb-6">
@@ -25,6 +33,7 @@ export default function ProfileTab() {
             variant="ghost"
             size="icon"
             className="rounded-full hover:bg-white/10"
+            aria-label="Open settings"
           >
             <Settings className="w-5 h-5" />
           </Button>
@@ -44,7 +53,7 @@ export default function ProfileTab() {
                 </div>
               </div>
               <Button
-                onClick={() => setSubscriptionOpen(true)}
+                onClick={handleOpenSubscription}
                 className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-semibold"
               >
                 Upgrade
@@ -62,8 +71,9 @@ export default function ProfileTab() {
             </Avatar>
             <Button
               size="icon"
-              onClick={() => setPhotoManagerOpen(true)}
+              onClick={handleOpenPhotoManager}
               className="absolute bottom-0 right-0 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              aria-label="Manage photos"
             >
               <Camera className="w-4 h-4" />
             </Button>
@@ -94,7 +104,7 @@ export default function ProfileTab() {
               Edit Profile
             </Button>
             <Button
-              onClick={() => setPhotoManagerOpen(true)}
+              onClick={handleOpenPhotoManager}
               variant="outline"
               className="border-white/20 hover:bg-white/10"
             >

@@ -1,6 +1,7 @@
 import { Crown, Check, Zap, Star } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Card, Badge } from "@zenith/ui-components";
 import { loadStripe } from "@stripe/stripe-js";
+import { useCallback } from "react";
 
 interface SubscriptionDialogProps {
   open: boolean;
@@ -48,23 +49,37 @@ const plans = [
 ];
 
 export default function SubscriptionDialog({ open, onOpenChange }: SubscriptionDialogProps) {
-  const handleSubscribe = async (planId: string) => {
-    // In production, create Stripe checkout session
+  const handleSubscribe = useCallback(async (planId: string) => {
+    // SECURITY FIX #3: Removed hardcoded test key fallback
+    // Stripe key must be properly configured in environment variables
+    const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 
-    
-    // Simulate Stripe checkout
-    const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_demo");
-    
+    if (!stripeKey) {
+      // SECURITY FIX #9: Don't log missing keys in production (info disclosure)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('VITE_STRIPE_PUBLIC_KEY is not configured');
+      }
+      // TODO: Show user-friendly error message
+      throw new Error('Payment system is not properly configured. Please contact support.');
+    }
+
+    // SECURITY: Only load Stripe with valid production key
+    const stripe = await loadStripe(stripeKey);
+
+    if (!stripe) {
+      throw new Error('Failed to initialize payment system');
+    }
+
     // Create checkout session via API
     // const response = await fetch('/api/create-checkout-session', {
     //   method: 'POST',
     //   body: JSON.stringify({ planId })
     // });
     // const session = await response.json();
-    // stripe?.redirectToCheckout({ sessionId: session.id });
-    
+    // stripe.redirectToCheckout({ sessionId: session.id });
+
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

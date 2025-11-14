@@ -1,6 +1,6 @@
 import { Video, Mic, MicOff, VideoOff, PhoneOff, Maximize, MessageSquare } from "lucide-react";
 import { Dialog, DialogContent, Button, Avatar, AvatarFallback, AvatarImage, Card } from "@zenith/ui-components";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface VideoCallDialogProps {
   open: boolean;
@@ -14,10 +14,18 @@ export default function VideoCallDialog({ open, onOpenChange, recipientName, rec
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [callStatus, setCallStatus] = useState<"connecting" | "connected" | "ended">("connecting");
 
-  const endCall = () => {
+  const endCall = useCallback(() => {
     setCallStatus("ended");
     setTimeout(() => onOpenChange(false), 1000);
-  };
+  }, [onOpenChange]);
+
+  const toggleVideo = useCallback(() => {
+    setVideoEnabled(prev => !prev);
+  }, []);
+
+  const toggleAudio = useCallback(() => {
+    setAudioEnabled(prev => !prev);
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,8 +83,9 @@ export default function VideoCallDialog({ open, onOpenChange, recipientName, rec
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => setVideoEnabled(!videoEnabled)}
+                    onClick={toggleVideo}
                     className={`rounded-full ${videoEnabled ? "bg-white/10 hover:bg-white/20" : "bg-red-500 hover:bg-red-600"}`}
+                    aria-label={videoEnabled ? "Turn off video" : "Turn on video"}
                   >
                     {videoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
                   </Button>
@@ -84,8 +93,9 @@ export default function VideoCallDialog({ open, onOpenChange, recipientName, rec
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => setAudioEnabled(!audioEnabled)}
+                    onClick={toggleAudio}
                     className={`rounded-full ${audioEnabled ? "bg-white/10 hover:bg-white/20" : "bg-red-500 hover:bg-red-600"}`}
+                    aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
                   >
                     {audioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
                   </Button>
@@ -94,6 +104,7 @@ export default function VideoCallDialog({ open, onOpenChange, recipientName, rec
                     size="icon"
                     onClick={endCall}
                     className="rounded-full bg-red-500 hover:bg-red-600 w-14 h-14"
+                    aria-label="End call"
                   >
                     <PhoneOff className="w-6 h-6" />
                   </Button>

@@ -1,5 +1,6 @@
 import { Grid3x3, MessageCircle, Heart, User, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
+import { useCallback } from "react";
 
 interface BottomNavProps {
   activeTab: "explore" | "messages" | "favorites" | "profile" | "wallet";
@@ -15,6 +16,10 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     { id: "wallet" as const, icon: Wallet, label: "Wallet" },
   ];
 
+  const handleTabClick = useCallback((tabId: typeof tabs[number]['id']) => {
+    onTabChange(tabId);
+  }, [onTabChange]);
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-black/40 backdrop-blur-xl border-t border-white/10 z-50">
       <div className="max-w-7xl mx-auto px-4">
@@ -26,8 +31,9 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             return (
               <button
                 key={tab.id}
-                onClick={() => onTabChange(tab.id)}
+                onClick={() => handleTabClick(tab.id)}
                 className="relative flex flex-col items-center justify-center gap-1 px-4 py-2 transition-all"
+                aria-label={`Navigate to ${tab.label}`}
               >
                 {isActive && (
                   <motion.div

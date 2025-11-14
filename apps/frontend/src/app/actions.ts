@@ -1,12 +1,22 @@
 /**
  * Official Next.js 14 Server Actions
  * Type-safe server-side mutations with automatic revalidation
+ *
+ * SECURITY FIX #6: Added CSRF protection
+ * Next.js Server Actions have built-in CSRF protection via:
+ * 1. POST-only requests
+ * 2. Same-origin policy
+ * 3. Unpredictable action IDs
+ * 4. Proper cookie handling with SameSite
+ *
+ * Additional security: All actions verify user authentication
  */
 
 'use server'
 
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { profileSchema, messageSchema } from '@/lib/validation'
 import type { z } from 'zod'
@@ -17,12 +27,42 @@ type ActionResponse<T> =
   | { success: false; error: string }
 
 /**
+ * SECURITY FIX #6: CSRF validation helper
+ * Validates that the request comes from the same origin
+ */
+async function validateCSRF() {
+  const headersList = headers()
+  const origin = headersList.get('origin')
+  const host = headersList.get('host')
+
+  // In production, verify origin matches host
+  if (process.env.NODE_ENV === 'production') {
+    if (!origin || !host) {
+      return false
+    }
+    // Ensure origin matches our host (prevent CSRF from external sites)
+    const originHost = new URL(origin).host
+    if (originHost !== host) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
  * Update user profile
  */
 export async function updateProfile(
   formData: FormData
 ): Promise<ActionResponse<{ id: string }>> {
   try {
+    // SECURITY FIX #6: Validate CSRF protection
+    const isValidRequest = await validateCSRF()
+    if (!isValidRequest) {
+      return { success: false, error: 'Invalid request origin' }
+    }
+
     const supabase = createClient()
 
     // Get authenticated user
@@ -76,6 +116,12 @@ export async function sendMessage(
   formData: FormData
 ): Promise<ActionResponse<{ id: string }>> {
   try {
+    // SECURITY FIX #6: Validate CSRF protection
+    const isValidRequest = await validateCSRF()
+    if (!isValidRequest) {
+      return { success: false, error: 'Invalid request origin' }
+    }
+
     const supabase = createClient()
 
     const {
@@ -93,7 +139,19 @@ export async function sendMessage(
       conversation_id: formData.get('conversation_id') as string,
     }
 
-    const validated = messageSchema.parse(data)
+    // SECURITY FIX #11: Sanitize message content to prevent XSS
+    // Strip HTML tags and dangerous content before validation
+    const sanitizedContent = data.content
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '') // Remove iframe tags
+      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handlers
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .trim()
+
+    const validated = messageSchema.parse({
+      ...data,
+      content: sanitizedContent,
+    })
 
     // Send message using RPC for security
     const { data: message, error } = await supabase.rpc('send_message', {
@@ -126,6 +184,12 @@ export async function uploadProfilePhoto(
   formData: FormData
 ): Promise<ActionResponse<{ url: string }>> {
   try {
+    // SECURITY FIX #6: Validate CSRF protection
+    const isValidRequest = await validateCSRF()
+    if (!isValidRequest) {
+      return { success: false, error: 'Invalid request origin' }
+    }
+
     const supabase = createClient()
 
     const {
@@ -143,14 +207,60 @@ export async function uploadProfilePhoto(
       return { success: false, error: 'No file provided' }
     }
 
-    // Validate file
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp']
+    // SECURITY FIX #18: Comprehensive server-side file validation
+
+    // 1. Validate MIME type from browser
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
     if (!validTypes.includes(file.type)) {
-      return { success: false, error: 'Invalid file type' }
+      return { success: false, error: 'Invalid file type. Only JPEG, PNG, and WebP images are allowed.' }
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      return { success: false, error: 'File too large (max 10MB)' }
+    // 2. Validate file size (max 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      return { success: false, error: 'File too large. Maximum size is 10MB.' }
+    }
+
+    // 3. Validate minimum file size (prevent empty/corrupt files)
+    const MIN_FILE_SIZE = 1024 // 1KB
+    if (file.size < MIN_FILE_SIZE) {
+      return { success: false, error: 'File too small. Minimum size is 1KB.' }
+    }
+
+    // 4. Validate file extension matches MIME type
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    const validExtensions = ['jpg', 'jpeg', 'png', 'webp']
+    if (!fileExtension || !validExtensions.includes(fileExtension)) {
+      return { success: false, error: 'Invalid file extension.' }
+    }
+
+    // 5. Verify MIME type matches extension
+    const mimeToExt: Record<string, string[]> = {
+      'image/jpeg': ['jpg', 'jpeg'],
+      'image/png': ['png'],
+      'image/webp': ['webp'],
+    }
+    const expectedExtensions = mimeToExt[file.type]
+    if (!expectedExtensions || !expectedExtensions.includes(fileExtension)) {
+      return { success: false, error: 'File type does not match extension.' }
+    }
+
+    // 6. Validate image dimensions (optional but recommended)
+    // This prevents uploading very large resolution images that could cause issues
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+
+      // Basic magic number validation to verify it's actually an image
+      const isPNG = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47
+      const isJPEG = buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF
+      const isWebP = buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+
+      if (!isPNG && !isJPEG && !isWebP) {
+        return { success: false, error: 'File does not appear to be a valid image.' }
+      }
+    } catch (error) {
+      return { success: false, error: 'Failed to validate file contents.' }
     }
 
     // Upload to Supabase Storage

@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Label, Button, Badge } from "@zenith/ui-components";
 import { Slider } from "../ui/slider";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { X } from "lucide-react";
+import { DEFAULT_MIN_AGE, DEFAULT_MAX_AGE, MIN_AGE, MAX_AGE, DEFAULT_DISTANCE, MIN_DISTANCE, MAX_DISTANCE, TRIBES } from "@/constants/app";
 
 interface FilterDialogProps {
   open: boolean;
@@ -9,19 +10,25 @@ interface FilterDialogProps {
 }
 
 export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) {
-  const [ageRange, setAgeRange] = useState([18, 50]);
-  const [distance, setDistance] = useState([10]);
+  const [ageRange, setAgeRange] = useState([DEFAULT_MIN_AGE, DEFAULT_MAX_AGE]);
+  const [distance, setDistance] = useState([DEFAULT_DISTANCE]);
   const [selectedTribes, setSelectedTribes] = useState<string[]>([]);
 
-  const tribes = [
-    "Bear", "Otter", "Twink", "Jock", "Geek", "Leather", "Daddy", "Poz", "Clean-Cut", "Rugged"
-  ];
-
-  const toggleTribe = (tribe: string) => {
+  const toggleTribe = useCallback((tribe: string) => {
     setSelectedTribes(prev =>
       prev.includes(tribe) ? prev.filter(t => t !== tribe) : [...prev, tribe]
     );
-  };
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setAgeRange([DEFAULT_MIN_AGE, DEFAULT_MAX_AGE]);
+    setDistance([DEFAULT_DISTANCE]);
+    setSelectedTribes([]);
+  }, []);
+
+  const handleApply = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,8 +48,8 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
             <Slider
               value={ageRange}
               onValueChange={setAgeRange}
-              min={18}
-              max={80}
+              min={MIN_AGE}
+              max={MAX_AGE}
               step={1}
               className="w-full"
             />
@@ -57,8 +64,8 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
             <Slider
               value={distance}
               onValueChange={setDistance}
-              min={1}
-              max={100}
+              min={MIN_DISTANCE}
+              max={MAX_DISTANCE}
               step={1}
               className="w-full"
             />
@@ -68,7 +75,7 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
           <div className="space-y-3">
             <Label className="text-base">Tribes</Label>
             <div className="flex flex-wrap gap-2">
-              {tribes.map((tribe) => (
+              {TRIBES.map((tribe) => (
                 <Badge
                   key={tribe}
                   variant={selectedTribes.includes(tribe) ? "default" : "outline"}
@@ -93,17 +100,13 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
             <Button
               variant="outline"
               className="flex-1 border-white/20 hover:bg-white/10"
-              onClick={() => {
-                setAgeRange([18, 50]);
-                setDistance([10]);
-                setSelectedTribes([]);
-              }}
+              onClick={handleReset}
             >
               Reset
             </Button>
             <Button
               className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              onClick={() => onOpenChange(false)}
+              onClick={handleApply}
             >
               Apply Filters
             </Button>

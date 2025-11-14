@@ -29,11 +29,22 @@ export function createClient() {
       set(name: string, value: string, options: any) {
         // Client-side cookie setting
         if (typeof document === 'undefined') return
+
+        // SECURITY FIX #15: Add security flags to cookies
+        // Note: httpOnly cannot be set from JavaScript (requires server-side)
+        // httpOnly cookies are set by the server in middleware and API routes
         let cookie = `${name}=${value}`
         if (options?.maxAge) cookie += `; max-age=${options.maxAge}`
-        if (options?.path) cookie += `; path=${options.path}`
-        if (options?.sameSite) cookie += `; samesite=${options.sameSite}`
-        if (options?.secure) cookie += '; secure'
+        if (options?.path) cookie += `; path=${options.path || '/'}`
+
+        // SECURITY: Always set SameSite to Lax for CSRF protection
+        cookie += `; samesite=${options?.sameSite || 'lax'}`
+
+        // SECURITY: Always set Secure flag in production
+        if (process.env.NODE_ENV === 'production' || options?.secure) {
+          cookie += '; secure'
+        }
+
         document.cookie = cookie
       },
       remove(name: string, options: any) {

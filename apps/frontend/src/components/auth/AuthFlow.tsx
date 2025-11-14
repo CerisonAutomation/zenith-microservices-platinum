@@ -109,6 +109,7 @@ export function AuthFlow() {
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
                     className="pl-10"
+                    maxLength={254}
                     required
                   />
                 </div>
@@ -162,6 +163,7 @@ export function AuthFlow() {
                       value={signInEmail}
                       onChange={(e) => setSignInEmail(e.target.value)}
                       className="pl-10"
+                      maxLength={254}
                       required
                     />
                   </div>
@@ -177,6 +179,7 @@ export function AuthFlow() {
                       value={signInPassword}
                       onChange={(e) => setSignInPassword(e.target.value)}
                       className="pl-10"
+                      maxLength={128}
                       required
                     />
                   </div>
@@ -208,6 +211,7 @@ export function AuthFlow() {
                       value={signUpName}
                       onChange={(e) => setSignUpName(e.target.value)}
                       className="pl-10"
+                      maxLength={100}
                       required
                     />
                   </div>
@@ -223,6 +227,7 @@ export function AuthFlow() {
                       value={signUpEmail}
                       onChange={(e) => setSignUpEmail(e.target.value)}
                       className="pl-10"
+                      maxLength={254}
                       required
                     />
                   </div>
@@ -238,8 +243,9 @@ export function AuthFlow() {
                       value={signUpPassword}
                       onChange={(e) => setSignUpPassword(e.target.value)}
                       className="pl-10"
-                      required
                       minLength={8}
+                      maxLength={128}
+                      required
                     />
                   </div>
                 </div>
@@ -254,8 +260,9 @@ export function AuthFlow() {
                       value={signUpConfirmPassword}
                       onChange={(e) => setSignUpConfirmPassword(e.target.value)}
                       className="pl-10"
-                      required
                       minLength={8}
+                      maxLength={128}
+                      required
                     />
                   </div>
                 </div>

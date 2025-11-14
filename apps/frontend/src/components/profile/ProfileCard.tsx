@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { MessageCircle, Heart, Ban, Share2, MapPin, CheckCircle, Calendar, Video, Shield, Zap } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Dialog, DialogContent, Button, Badge } from "@zenith/ui-components";
 import BookingDialog from "../booking/BookingDialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel";
@@ -41,13 +41,26 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
 
   const allPhotos = profile.photos || [profile.photo];
 
+  const handleOpenDetail = useCallback(() => {
+    setDetailOpen(true);
+  }, []);
+
+  const handleStopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const handleBookingClick = useCallback(() => {
+    setDetailOpen(false);
+    setBookingOpen(true);
+  }, []);
+
   return (
     <>
       <motion.div
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className="relative group cursor-pointer"
-        onClick={() => setDetailOpen(true)}
+        onClick={handleOpenDetail}
       >
         <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-white/10">
           <img
@@ -97,9 +110,7 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
               size="icon"
               variant="ghost"
               className="rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
+              onClick={handleStopPropagation}
             >
               <Heart className="w-5 h-5" />
             </Button>
@@ -107,9 +118,7 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
               size="icon"
               variant="ghost"
               className="rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
+              onClick={handleStopPropagation}
             >
               <MessageCircle className="w-5 h-5" />
             </Button>
@@ -222,11 +231,8 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
 
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-3">
-              <Button 
-                onClick={() => {
-                  setDetailOpen(false);
-                  setBookingOpen(true);
-                }}
+              <Button
+                onClick={handleBookingClick}
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
                 <Calendar className="w-4 h-4 mr-2" />

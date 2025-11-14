@@ -36,7 +36,12 @@ export function useNearbyUsers(options: UseNearbyUsersOptions = {}) {
   // Fetch nearby users
   const fetchNearbyUsers = useCallback(async () => {
     try {
-      const { data, error: rpcError } = await supabase.rpc('find_nearby_users_realtime', {
+      // Use RPC function that includes profile data via JOIN to avoid N+1 queries
+      const rpcFunction = includeProfiles
+        ? 'find_nearby_users_with_profiles'
+        : 'find_nearby_users_realtime';
+
+      const { data, error: rpcError } = await supabase.rpc(rpcFunction, {
         radius_km: radiusKm,
         max_results: maxResults
       });
@@ -46,29 +51,7 @@ export function useNearbyUsers(options: UseNearbyUsersOptions = {}) {
         return;
       }
 
-      if (!data) {
-        setUsers([]);
-        return;
-      }
-
-      // Fetch profiles if requested
-      if (includeProfiles && data.length > 0) {
-        const userIds = data.map((u: NearbyUser) => u.user_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, age, bio, photos')
-          .in('id', userIds);
-
-        const usersWithProfiles = data.map((user: NearbyUser) => ({
-          ...user,
-          profile: profiles?.find((p) => p.id === user.user_id)
-        }));
-
-        setUsers(usersWithProfiles);
-      } else {
-        setUsers(data);
-      }
-
+      setUsers(data || []);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch nearby users');
