@@ -1,12 +1,34 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // VERCEL BEST PRACTICE: Remove standalone output for Vercel deployments
+  // Vercel automatically optimizes the build. Use standalone only for Docker.
+  // Uncomment the line below only if deploying to Docker/self-hosted:
+  // output: 'standalone',
+
   experimental: {
     optimizeCss: true,
   },
+
+  // VERCEL BEST PRACTICE: Use remotePatterns instead of deprecated domains
   images: {
-    domains: ['images.unsplash.com', 'supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.in',
+      },
+    ],
     formats: ['image/webp', 'image/avif'],
+    // VERCEL OPTIMIZATION: Optimized device and image sizes
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
