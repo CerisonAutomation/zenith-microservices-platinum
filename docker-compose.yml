@@ -1,0 +1,367 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: zenith-postgres
+    environment:
+      POSTGRES_USER: zenith
+      POSTGRES_PASSWORD: zenith_dev_password
+      POSTGRES_DB: zenith
+      POSTGRES_MULTIPLE_DATABASES: auth,users,data,payments
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    ports:
+      - "5432:5432"
+    networks:
+      - zenith-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zenith"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: zenith-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - zenith-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Elasticsearch for search
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: zenith-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - zenith-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: zenith-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: zenith
+      RABBITMQ_DEFAULT_PASS: zenith_dev_password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - zenith-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./apps/auth_service
+      dockerfile: Dockerfile
+      target: development
+    container_name: zenith-auth-service
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://zenith:zenith_dev_password@postgres:5432/auth
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret_change_in_production
+      JWT_EXPIRATION: 7d
+    volumes:
+      - ./apps/auth_service:/app
+      - /app/node_modules
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - zenith-network
+    command: npm run dev
+
+  # User Service (Python)
+  user-service:
+    build:
+      context: ./apps/user-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: zenith-user-service
+    environment:
+      FLASK_ENV: development
+      FLASK_APP: app.py
+      PORT: 5000
+      DATABASE_URL: postgresql://zenith:zenith_dev_password@postgres:5432/users
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    volumes:
+      - ./apps/user-service:/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - zenith-network
+    command: flask run --host=0.0.0.0
+
+  # Data Service
+  data-service:
+    build:
+      context: ./apps/data_service
+      dockerfile: Dockerfile
+      target: development
+    container_name: zenith-data-service
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      DATABASE_URL: postgresql://zenith:zenith_dev_password@postgres:5432/data
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    volumes:
+      - ./apps/data_service:/app
+      - /app/node_modules
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - zenith-network
+    command: npm run dev
+
+  # i18n Service
+  i18n-service:
+    build:
+      context: ./apps/i18n_service
+      dockerfile: Dockerfile
+      target: development
+    container_name: zenith-i18n-service
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://zenith:zenith_dev_password@postgres:5432/zenith
+    volumes:
+      - ./apps/i18n_service:/app
+      - /app/node_modules
+    ports:
+      - "3003:3003"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - zenith-network
+    command: npm run dev
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./apps/payment_service
+      dockerfile: Dockerfile
+      target: development
+    container_name: zenith-payment-service
+    environment:
+      NODE_ENV: development
+      PORT: 3004
+      DATABASE_URL: postgresql://zenith:zenith_dev_password@postgres:5432/payments
+      REDIS_URL: redis://redis:6379
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_dummy}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_dummy}
+    volumes:
+      - ./apps/payment_service:/app
+      - /app/node_modules
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - zenith-network
+    command: npm run dev
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./apps/api_gateway
+      dockerfile: Dockerfile
+      target: development
+    container_name: zenith-api-gateway
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      REDIS_URL: redis://redis:6379
+      AUTH_SERVICE_URL: http://auth-service:3001
+      USER_SERVICE_URL: http://user-service:5000
+      DATA_SERVICE_URL: http://data-service:3002
+      I18N_SERVICE_URL: http://i18n-service:3003
+      PAYMENT_SERVICE_URL: http://payment-service:3004
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+    volumes:
+      - ./apps/api_gateway:/app
+      - /app/node_modules
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - user-service
+      - data-service
+      - i18n-service
+      - payment-service
+      - redis
+    networks:
+      - zenith-network
+    command: npm run dev
+
+  # Frontend
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: zenith-frontend
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_WS_URL: ws://localhost:8080
+      NEXT_TELEMETRY_DISABLED: 1
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    networks:
+      - zenith-network
+    command: npm run dev
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: zenith-nginx
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - api-gateway
+    networks:
+      - zenith-network
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: zenith-prometheus
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - zenith-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: zenith-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infra/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3005:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - zenith-network
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: zenith-jaeger
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: :9411
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+    networks:
+      - zenith-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  zenith-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

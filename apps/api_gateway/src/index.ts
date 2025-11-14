@@ -5,9 +5,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import fs from 'fs';
+import swaggerUi from 'swagger-ui-express';
 
 // Assuming shared-utils is a sibling of apps
 import { metrics } from '../../../packages/shared-utils/src/utils/metrics';
+import { swaggerSpec } from './swagger.config';
 
 // --- CONFIGURATION LOADING ---
 interface ServiceConfig {
@@ -79,7 +81,72 @@ const instrumentationMiddleware = (req: Request, res: Response, next: NextFuncti
 
 app.use(instrumentationMiddleware);
 
+// --- API DOCUMENTATION ---
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Zenith API Gateway Docs',
+}));
+
+app.get('/openapi.json', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// --- HEALTH CHECK ENDPOINTS ---
+/**
+ * @openapi
+ * /health/live:
+ *   get:
+ *     tags: [Health]
+ *     summary: Liveness check
+ *     description: Check if the gateway is alive
+ *     responses:
+ *       200:
+ *         description: Gateway is alive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ */
+app.get('/health/live', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'alive' });
+});
+
+/**
+ * @openapi
+ * /health/ready:
+ *   get:
+ *     tags: [Health]
+ *     summary: Readiness check
+ *     description: Check if the gateway is ready to accept traffic
+ *     responses:
+ *       200:
+ *         description: Gateway is ready
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ */
+app.get('/health/ready', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ready' });
+});
+
 // --- METRICS ENDPOINT ---
+/**
+ * @openapi
+ * /metrics:
+ *   get:
+ *     tags: [Metrics]
+ *     summary: Prometheus metrics
+ *     description: Get Prometheus-formatted metrics
+ *     responses:
+ *       200:
+ *         description: Metrics in Prometheus format
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ */
 app.get('/metrics', async (req: Request, res: Response) => {
   try {
     res.set('Content-Type', metrics.contentType);
@@ -145,4 +212,8 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // --- SERVER START ---
 app.listen(PORT, () => {
   console.log(`[INFO] API Gateway listening on port ${PORT}`);
+  console.log(`[INFO] API Documentation: http://localhost:${PORT}/api-docs`);
+  console.log(`[INFO] OpenAPI Spec: http://localhost:${PORT}/openapi.json`);
+  console.log(`[INFO] Health Check: http://localhost:${PORT}/health/live`);
+  console.log(`[INFO] Metrics: http://localhost:${PORT}/metrics`);
 });

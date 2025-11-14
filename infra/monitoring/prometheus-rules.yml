@@ -1,0 +1,116 @@
+groups:
+  - name: service_alerts
+    interval: 30s
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has error rate above 5% (current value: {{ $value }})"
+
+      # High Latency
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has 95th percentile latency above 1s (current value: {{ $value }}s)"
+
+      # Service Down
+      - alert: ServiceDown
+        expr: up{job=~".*-service|api-gateway"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 2 minutes"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{name=~".*service.*"}
+            /
+            container_spec_memory_limit_bytes{name=~".*service.*"}
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage for {{ $labels.name }}"
+          description: "Container {{ $labels.name }} is using more than 90% of its memory limit (current value: {{ $value }})"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          rate(container_cpu_usage_seconds_total{name=~".*service.*"}[5m]) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage for {{ $labels.name }}"
+          description: "Container {{ $labels.name }} is using more than 90% CPU (current value: {{ $value }})"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Database Connection Pool Exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          (
+            db_pool_connections_active
+            /
+            db_pool_connections_max
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool nearly exhausted for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} is using more than 90% of database connections (current value: {{ $value }})"
+
+      # Slow Database Queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (le, service)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has 95th percentile query time above 2s (current value: {{ $value }}s)"
+
+  - name: trace_alerts
+    interval: 30s
+    rules:
+      # High Trace Error Rate
+      - alert: HighTraceErrorRate
+        expr: |
+          (
+            sum(rate(traces_spanmetrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) by (service_name)
+            /
+            sum(rate(traces_spanmetrics_calls_total[5m])) by (service_name)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High trace error rate for {{ $labels.service_name }}"
+          description: "Service {{ $labels.service_name }} has trace error rate above 5% (current value: {{ $value }})"

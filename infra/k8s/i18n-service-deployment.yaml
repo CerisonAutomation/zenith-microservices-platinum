@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: i18n-service
+  labels:
+    app: i18n-service
+    tier: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: i18n-service
+  template:
+    metadata:
+      labels:
+        app: i18n-service
+        tier: backend
+    spec:
+      containers:
+      - name: i18n-service
+        image: ghcr.io/your-org/zenith-microservices-platinum/i18n_service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3003
+          name: http
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: zenith-config
+              key: NODE_ENV
+        - name: PORT
+          value: "3003"
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: zenith-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: zenith-config
+              key: REDIS_PORT
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: zenith-secrets
+              key: DATABASE_URL
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3003
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3003
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: i18n-service
+  labels:
+    app: i18n-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3003
+    targetPort: 3003
+    protocol: TCP
+    name: http
+  selector:
+    app: i18n-service

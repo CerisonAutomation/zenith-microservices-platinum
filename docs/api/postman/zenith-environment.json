@@ -1,0 +1,62 @@
+{
+  "id": "zenith-dev-environment",
+  "name": "Zenith Development",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "enabled": true
+    },
+    {
+      "key": "auth_service_url",
+      "value": "http://localhost:3001",
+      "enabled": true
+    },
+    {
+      "key": "data_service_url",
+      "value": "http://localhost:3003",
+      "enabled": true
+    },
+    {
+      "key": "payment_service_url",
+      "value": "http://localhost:3002",
+      "enabled": true
+    },
+    {
+      "key": "i18n_service_url",
+      "value": "http://localhost:3004",
+      "enabled": true
+    },
+    {
+      "key": "user_service_url",
+      "value": "http://localhost:8000",
+      "enabled": true
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "test_email",
+      "value": "test@example.com",
+      "enabled": true
+    },
+    {
+      "key": "test_password",
+      "value": "TestPassword123!",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

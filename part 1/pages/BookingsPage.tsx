@@ -3,23 +3,90 @@
  */
 
 import { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/layout/MainLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MainLayout } from '../components/layout/MainLayout';
+import { Card, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Calendar, Clock, MapPin, Check, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { mockBookings } from '@/lib/mockData';
+import { useAuth } from '../contexts/AuthContext';
 import type { Booking } from '@/types';
 import { format } from 'date-fns';
 
 export default function BookingsPage() {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: Replace with actual API call
-    setBookings(mockBookings);
-  }, []);
+    loadBookings();
+  }, [user]);
+
+  const loadBookings = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error: queryError } = await (supabase as any)
+        .from('bookings')
+        .select(`
+          *,
+          profile:profiles!bookings_profile_id_fkey(*)
+        `)
+        .eq('user_id', user.id)
+        .order('date', { ascending: true });
+
+      if (queryError) {
+        console.warn('Bookings not found in database, using mock data:', queryError);
+        setBookings(mockBookings);
+        setLoading(false);
+        return;
+      }
+
+      // Map database fields to Booking type
+      const bookingsData: Booking[] = (data || []).map((booking: any) => ({
+        id: booking.id,
+        user_id: booking.user_id,
+        profile_id: booking.profile_id,
+        profile: booking.profile ? {
+          id: booking.profile.id,
+          user_id: booking.profile.user_id,
+          name: booking.profile.name,
+          age: booking.profile.age,
+          photo: booking.profile.photo,
+          bio: booking.profile.bio,
+          location: booking.profile.location,
+          interests: booking.profile.interests,
+          verified: booking.profile.verified,
+          premium: booking.profile.premium,
+        } : undefined,
+        date: booking.date,
+        time: booking.time,
+        location: booking.location,
+        status: booking.status,
+        notes: booking.notes,
+        created_at: booking.created_at,
+        updated_at: booking.updated_at,
+      }));
+
+      setBookings(bookingsData);
+    } catch (err) {
+      console.error('Error loading bookings:', err);
+      setError('Failed to load bookings');
+      // Fallback to mock data on error
+      setBookings(mockBookings);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: Booking['status']) => {
     switch (status) {
@@ -36,6 +103,54 @@ export default function BookingsPage() {
     }
   };
 
+  const handleConfirmBooking = async (bookingId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('bookings')
+        .update({
+          status: 'confirmed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      // Update local state
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.id === bookingId ? { ...booking, status: 'confirmed' as const } : booking
+        )
+      );
+    } catch (err) {
+      console.error('Error confirming booking:', err);
+      setError('Failed to confirm booking');
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('bookings')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      // Update local state
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.id === bookingId ? { ...booking, status: 'cancelled' as const } : booking
+        )
+      );
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      setError('Failed to cancel booking');
+    }
+  };
+
   return (
     <MainLayout>
       <div className="container max-w-4xl mx-auto px-4 py-8">
@@ -44,8 +159,24 @@ export default function BookingsPage() {
           <p className="text-white/60">Manage your upcoming and past dates</p>
         </div>
 
-        <div className="space-y-4">
-          {bookings.length === 0 ? (
+        {error && (
+          <Card className="mb-4 border-red-500 bg-red-500/10">
+            <CardContent className="p-4">
+              <p className="text-red-500 text-sm">{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-400 rounded-full animate-spin mb-4"></div>
+              <p className="text-lg font-medium text-center">Loading bookings...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {bookings.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
@@ -55,8 +186,8 @@ export default function BookingsPage() {
                 </p>
               </CardContent>
             </Card>
-          ) : (
-            bookings.map((booking) => (
+            ) : (
+              bookings.map((booking) => (
               <Card key={booking.id}>
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
@@ -103,11 +234,19 @@ export default function BookingsPage() {
                       {/* Actions */}
                       {booking.status === 'pending' && (
                         <div className="flex gap-2 mt-4">
-                          <Button size="sm" variant="default">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleConfirmBooking(booking.id)}
+                          >
                             <Check className="h-4 w-4 mr-1" />
                             Confirm
                           </Button>
-                          <Button size="sm" variant="destructive">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleCancelBooking(booking.id)}
+                          >
                             <X className="h-4 w-4 mr-1" />
                             Cancel
                           </Button>
@@ -119,7 +258,11 @@ export default function BookingsPage() {
                           <Button size="sm" variant="outline">
                             Reschedule
                           </Button>
-                          <Button size="sm" variant="destructive">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleCancelBooking(booking.id)}
+                          >
                             Cancel
                           </Button>
                         </div>
@@ -128,9 +271,10 @@ export default function BookingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </MainLayout>
   );

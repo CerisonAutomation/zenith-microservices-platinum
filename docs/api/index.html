@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenith Microservices API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .intro {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .intro h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .service-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .service-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .service-card h3 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .service-card p {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .service-links {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 1px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: #28a745;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .resources {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+
+        .resources h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .resources ul {
+            list-style: none;
+        }
+
+        .resources li {
+            padding: 0.5rem 0;
+        }
+
+        .resources a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .resources a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            background: #2d3748;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .tech-stack {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tech-badge {
+            background: #e0e7ff;
+            color: #667eea;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Zenith Microservices API</h1>
+            <p>Comprehensive API Documentation Portal</p>
+        </header>
+
+        <div class="content">
+            <div class="intro">
+                <h2>Welcome to Zenith API Documentation</h2>
+                <p>
+                    This portal provides access to OpenAPI/Swagger documentation for all Zenith microservices.
+                    Each service has interactive API documentation with request/response examples, schema definitions,
+                    and the ability to test endpoints directly from your browser.
+                </p>
+                <div class="tech-stack">
+                    <span class="tech-badge">OpenAPI 3.0</span>
+                    <span class="tech-badge">REST API</span>
+                    <span class="tech-badge">JWT Auth</span>
+                    <span class="tech-badge">TypeScript</span>
+                    <span class="tech-badge">Python/FastAPI</span>
+                    <span class="tech-badge">Microservices</span>
+                </div>
+            </div>
+
+            <h2 style="margin-bottom: 1rem; color: #667eea;">📡 Available Services</h2>
+
+            <div class="services-grid">
+                <!-- API Gateway -->
+                <div class="service-card">
+                    <h3>
+                        <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                        </svg>
+                        API Gateway
+                        <span class="badge">Gateway</span>
+                    </h3>
+                    <p>Unified entry point for all microservices with routing, rate limiting, and load balancing.</p>
+                    <div class="service-links">
+                        <a href="http://localhost:8080/api-docs" class="btn btn-primary" target="_blank">Swagger UI</a>
+                        <a href="http://localhost:8080/openapi.json" class="btn btn-secondary" target="_blank">OpenAPI JSON</a>
+                        <a href="http://localhost:8080/health/live" class="btn btn-secondary" target="_blank">Health</a>
+                    </div>
+                </div>
+
+                <!-- Auth Service -->
+                <div class="service-card">
+                    <h3>
+                        <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                        </svg>
+                        Auth Service
+                        <span class="badge">Core</span>
+                    </h3>
+                    <p>Authentication and authorization with JWT, OAuth (Google, GitHub), and password management.</p>
+                    <div class="service-links">
+                        <a href="http://localhost:3001/api-docs" class="btn btn-primary" target="_blank">Swagger UI</a>
+                        <a href="http://localhost:3001/openapi.json" class="btn btn-secondary" target="_blank">OpenAPI JSON</a>
+                        <a href="http://localhost:3001/health" class="btn btn-secondary" target="_blank">Health</a>
+                    </div>
+                </div>
+
+                <!-- Data Service -->
+                <div class="service-card">
+                    <h3>
+                        <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z"/>
+                            <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z"/>
+                            <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z"/>
+                        </svg>
+                        Data Service
+                        <span class="badge">Core</span>
+                    </h3>
+                    <p>User data, subscriptions, messages, and bookings management with Prisma ORM.</p>
+                    <div class="service-links">
+                        <a href="http://localhost:3003/api-docs" class="btn btn-primary" target="_blank">Swagger UI</a>
+                        <a href="http://localhost:3003/openapi.json" class="btn btn-secondary" target="_blank">OpenAPI JSON</a>
+                        <a href="http://localhost:3003/health" class="btn btn-secondary" target="_blank">Health</a>
+                    </div>
+                </div>
+
+                <!-- Payment Service -->
+                <div class="service-card">
+                    <h3>
+                        <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
+                            <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/>
+                        </svg>
+                        Payment Service
+                        <span class="badge">Stripe</span>
+                    </h3>
+                    <p>Payment processing, subscriptions, and payment methods with Stripe integration.</p>
+                    <div class="service-links">
+                        <a href="http://localhost:3002/api-docs" class="btn btn-primary" target="_blank">Swagger UI</a>
+                        <a href="http://localhost:3002/openapi.json" class="btn btn-secondary" target="_blank">OpenAPI JSON</a>
+                        <a href="http://localhost:3002/health" class="btn btn-secondary" target="_blank">Health</a>
+                    </div>
+                </div>
+
+                <!-- i18n Service -->
+                <div class="service-card">
+                    <h3>
+                        <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 01-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clip-rule="evenodd"/>
+                        </svg>
+                        i18n Service
+                    </h3>
+                    <p>Internationalization and translation service supporting multiple languages.</p>
+                    <div class="service-links">
+                        <a href="http://localhost:3004/api-docs" class="btn btn-primary" target="_blank">Swagger UI</a>
+                        <a href="http://localhost:3004/openapi.json" class="btn btn-secondary" target="_blank">OpenAPI JSON</a>
+                        <a href="http://localhost:3004/health" class="btn btn-secondary" target="_blank">Health</a>
+                    </div>
+                </div>
+
+                <!-- User Service -->
+                <div class="service-card">
+                    <h3>
+                        <svg class="icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                        </svg>
+                        User Service
+                        <span class="badge">FastAPI</span>
+                    </h3>
+                    <p>Comprehensive user service with chat, search, blog, forum, gallery, games, and newsletter features.</p>
+                    <div class="service-links">
+                        <a href="http://localhost:8000/api/docs" class="btn btn-primary" target="_blank">Swagger UI</a>
+                        <a href="http://localhost:8000/api/redoc" class="btn btn-primary" target="_blank">ReDoc</a>
+                        <a href="http://localhost:8000/api/openapi.json" class="btn btn-secondary" target="_blank">OpenAPI JSON</a>
+                        <a href="http://localhost:8000/health" class="btn btn-secondary" target="_blank">Health</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="resources">
+                <h2>📚 Additional Resources</h2>
+                <ul>
+                    <li><strong>Architecture Documentation:</strong> <a href="../architecture/README.md">System Architecture</a></li>
+                    <li><strong>Postman Collections:</strong> <a href="./postman/README.md">Import Postman Collections</a></li>
+                    <li><strong>Authentication Guide:</strong> <a href="./auth-guide.md">How to Authenticate</a></li>
+                    <li><strong>Rate Limiting:</strong> All services implement rate limiting to prevent abuse</li>
+                    <li><strong>Monitoring:</strong> Prometheus metrics available at <code>/metrics</code> on each service</li>
+                    <li><strong>Health Checks:</strong> Health endpoints at <code>/health</code> on each service</li>
+                </ul>
+            </div>
+
+            <div class="resources" style="margin-top: 1rem;">
+                <h2>🔧 Development Setup</h2>
+                <p><strong>Default Service Ports:</strong></p>
+                <ul>
+                    <li>API Gateway: <code>8080</code></li>
+                    <li>Auth Service: <code>3001</code></li>
+                    <li>Payment Service: <code>3002</code></li>
+                    <li>Data Service: <code>3003</code></li>
+                    <li>i18n Service: <code>3004</code></li>
+                    <li>User Service: <code>8000</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2024 Zenith Microservices Platform. All rights reserved.</p>
+            <p style="margin-top: 0.5rem; opacity: 0.8;">Built with OpenAPI 3.0 | Powered by Express.js & FastAPI</p>
+        </footer>
+    </div>
+</body>
+</html>

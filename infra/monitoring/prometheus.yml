@@ -1,46 +1,82 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: 'zenith-microservices'
+    environment: 'production'
 
 rule_files:
-  # - "first_rules.yml"
-  # - "second_rules.yml"
+  - "prometheus-rules.yml"
 
 scrape_configs:
+  # Prometheus itself
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
+  # Python Services
   - job_name: 'user-service'
     static_configs:
       - targets: ['user-service:8000']
     metrics_path: '/metrics'
-    scrape_interval: 5s
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'user-service'
 
-  - job_name: 'booking-service'
+  # Node.js Services
+  - job_name: 'auth-service'
     static_configs:
-      - targets: ['booking-service:8001']
+      - targets: ['auth-service:3001']
     metrics_path: '/metrics'
-    scrape_interval: 5s
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'auth-service'
 
-  - job_name: 'messaging-service'
+  - job_name: 'data-service'
     static_configs:
-      - targets: ['messaging-service:8002']
+      - targets: ['data-service:3002']
     metrics_path: '/metrics'
-    scrape_interval: 5s
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'data-service'
+
+  - job_name: 'i18n-service'
+    static_configs:
+      - targets: ['i18n-service:3003']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'i18n-service'
 
   - job_name: 'payment-service'
     static_configs:
-      - targets: ['payment-service:8003']
+      - targets: ['payment-service:3004']
     metrics_path: '/metrics'
-    scrape_interval: 5s
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'payment-service'
 
   - job_name: 'api-gateway'
     static_configs:
       - targets: ['api-gateway:80']
     metrics_path: '/metrics'
-    scrape_interval: 5s
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'api-gateway'
 
+  # Infrastructure Monitoring
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
@@ -51,3 +87,27 @@ scrape_configs:
       - targets: ['cadvisor:8080']
     scrape_interval: 15s
     scrape_timeout: 10s
+
+  # Jaeger Metrics
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+    scrape_interval: 15s
+
+  # Elasticsearch Exporter
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch-exporter:9114']
+    scrape_interval: 15s
+
+  # Tempo Metrics
+  - job_name: 'tempo'
+    static_configs:
+      - targets: ['tempo:3200']
+    scrape_interval: 15s
+
+  # Loki Metrics
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+    scrape_interval: 15s

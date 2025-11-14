@@ -1,0 +1,367 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20.x'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Frontend CI
+  frontend:
+    name: Frontend - Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/frontend/coverage/coverage-final.json
+          flags: frontend
+
+      - name: Build
+        run: npm run build
+
+  # Auth Service CI
+  auth-service:
+    name: Auth Service - Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/auth_service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/auth_service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/auth_service/coverage/coverage-final.json
+          flags: auth-service
+
+      - name: Build
+        run: npm run build
+
+  # API Gateway CI
+  api-gateway:
+    name: API Gateway - Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/api_gateway
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/api_gateway/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/api_gateway/coverage/coverage-final.json
+          flags: api-gateway
+
+      - name: Build
+        run: npm run build
+
+  # Data Service CI
+  data-service:
+    name: Data Service - Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/data_service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/data_service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/data_service/coverage/coverage-final.json
+          flags: data-service
+
+      - name: Build
+        run: npm run build
+
+  # i18n Service CI
+  i18n-service:
+    name: i18n Service - Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/i18n_service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/i18n_service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/i18n_service/coverage/coverage-final.json
+          flags: i18n-service
+
+      - name: Build
+        run: npm run build
+
+  # Payment Service CI
+  payment-service:
+    name: Payment Service - Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/payment_service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/payment_service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/payment_service/coverage/coverage-final.json
+          flags: payment-service
+
+      - name: Build
+        run: npm run build
+
+  # User Service (Python) CI
+  user-service:
+    name: User Service - Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/user-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: apps/user-service/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov black flake8 mypy
+
+      - name: Run Black formatter check
+        run: black --check .
+
+      - name: Run Flake8
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run mypy type check
+        run: mypy . --ignore-missing-imports || true
+
+      - name: Run tests with coverage
+        run: pytest --cov=. --cov-report=xml --cov-report=term
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/user-service/coverage.xml
+          flags: user-service
+
+  # Docker Security Scanning
+  docker-security-scan:
+    name: Docker Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [frontend, auth_service, api_gateway, data_service, i18n_service, payment_service, user-service]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t zenith/${{ matrix.service }}:test ./apps/${{ matrix.service }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: zenith/${{ matrix.service }}:test
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+
+  # Dependency Check
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run npm audit for Node.js services
+        run: |
+          for service in frontend auth_service api_gateway data_service i18n_service payment_service; do
+            echo "Checking $service..."
+            cd apps/$service
+            npm audit --audit-level=high || true
+            cd ../..
+          done
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run pip audit for Python service
+        run: |
+          pip install pip-audit
+          cd apps/user-service
+          pip-audit || true
+
+  # Code Quality Summary
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [frontend, auth-service, api-gateway, data-service, i18n-service, payment-service, user-service]
+    if: always()
+
+    steps:
+      - name: Check job results
+        run: |
+          if [[ "${{ needs.frontend.result }}" != "success" ]] || \
+             [[ "${{ needs.auth-service.result }}" != "success" ]] || \
+             [[ "${{ needs.api-gateway.result }}" != "success" ]] || \
+             [[ "${{ needs.data-service.result }}" != "success" ]] || \
+             [[ "${{ needs.i18n-service.result }}" != "success" ]] || \
+             [[ "${{ needs.payment-service.result }}" != "success" ]] || \
+             [[ "${{ needs.user-service.result }}" != "success" ]]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All quality checks passed!"

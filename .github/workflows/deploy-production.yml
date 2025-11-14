@@ -1,0 +1,381 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  KUBERNETES_NAMESPACE: zenith-production
+
+jobs:
+  # Build and Push Docker Images
+  build-and-push:
+    name: Build & Push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - frontend
+          - auth_service
+          - api_gateway
+          - data_service
+          - i18n_service
+          - payment_service
+          - user-service
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=production-latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}:buildcache,mode=max
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
+            BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            VCS_REF=${{ github.sha }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}:${{ steps.version.outputs.VERSION }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Manual Approval for Production
+  approve-deployment:
+    name: Approve Production Deployment
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment:
+      name: production-approval
+
+    steps:
+      - name: Wait for approval
+        run: echo "Deployment approved"
+
+  # Blue-Green Deployment Strategy
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: approve-deployment
+    environment:
+      name: production
+      url: https://zenith-platform.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes context
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+
+      - name: Create backup of current deployment
+        run: |
+          kubectl get deployments -n ${{ env.KUBERNETES_NAMESPACE }} -o yaml > deployment-backup-$(date +%Y%m%d-%H%M%S).yaml
+
+      - name: Update image tags in manifests
+        run: |
+          cd infra/k8s
+          for service in frontend auth-service api-gateway data-service i18n-service payment-service user-service; do
+            sed -i "s|image:.*$service:.*|image: ${{ env.REGISTRY }}/${{ github.repository }}/${service//-/_}:${{ steps.version.outputs.VERSION }}|g" $service-deployment.yaml
+          done
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f infra/k8s/namespace.yaml
+          kubectl apply -f infra/k8s/configmap.yaml -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl apply -f infra/k8s/secrets.yaml -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl apply -f infra/k8s/ -n ${{ env.KUBERNETES_NAMESPACE }}
+
+      - name: Wait for deployments to be ready
+        run: |
+          kubectl wait --for=condition=available --timeout=600s \
+            deployment/frontend \
+            deployment/auth-service \
+            deployment/api-gateway \
+            deployment/data-service \
+            deployment/i18n-service \
+            deployment/payment-service \
+            deployment/user-service \
+            -n ${{ env.KUBERNETES_NAMESPACE }}
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl get services -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl get ingress -n ${{ env.KUBERNETES_NAMESPACE }}
+
+  # Run comprehensive smoke tests
+  smoke-tests:
+    name: Run Production Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Health check - Frontend
+        run: |
+          for i in {1..5}; do
+            curl -f https://zenith-platform.com/health && break || sleep 10
+          done
+
+      - name: Health check - API Gateway
+        run: |
+          curl -f https://api.zenith-platform.com/health || exit 1
+
+      - name: Health check - Auth Service
+        run: |
+          curl -f https://api.zenith-platform.com/auth/health || exit 1
+
+      - name: Health check - Data Service
+        run: |
+          curl -f https://api.zenith-platform.com/data/health || exit 1
+
+      - name: Health check - i18n Service
+        run: |
+          curl -f https://api.zenith-platform.com/i18n/health || exit 1
+
+      - name: Health check - Payment Service
+        run: |
+          curl -f https://api.zenith-platform.com/payments/health || exit 1
+
+      - name: Health check - User Service
+        run: |
+          curl -f https://api.zenith-platform.com/users/health || exit 1
+
+      - name: Run integration tests
+        run: |
+          # Add your integration test commands here
+          echo "Running integration tests..."
+
+  # Rollback on failure
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+    if: failure()
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes context
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+
+      - name: Rollback deployments
+        run: |
+          kubectl rollout undo deployment/frontend -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout undo deployment/auth-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout undo deployment/api-gateway -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout undo deployment/data-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout undo deployment/i18n-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout undo deployment/payment-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout undo deployment/user-service -n ${{ env.KUBERNETES_NAMESPACE }}
+
+      - name: Wait for rollback to complete
+        run: |
+          kubectl rollout status deployment/frontend -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout status deployment/auth-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout status deployment/api-gateway -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout status deployment/data-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout status deployment/i18n-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout status deployment/payment-service -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout status deployment/user-service -n ${{ env.KUBERNETES_NAMESPACE }}
+
+  # Create GitHub release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+    if: success()
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          git log --pretty=format:"- %s (%h)" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          release_name: Release ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## Changes in this Release
+            ${{ steps.changelog.outputs.CHANGELOG }}
+
+            ## Deployed Services
+            - Frontend
+            - Auth Service
+            - API Gateway
+            - Data Service
+            - i18n Service
+            - Payment Service
+            - User Service
+
+            ## Deployment Date
+            ${{ github.event.head_commit.timestamp }}
+          draft: false
+          prerelease: false
+
+  # Notify deployment status
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [smoke-tests, create-release]
+    if: always()
+
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Production Deployment ${{ needs.smoke-tests.result == 'success' && 'succeeded' || 'failed' }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Status*: ${{ needs.smoke-tests.result == 'success' && ':white_check_mark: Success' || ':x: Failed' }}\n*Version*: ${{ steps.version.outputs.VERSION }}\n*Commit*: ${{ github.sha }}\n*Author*: ${{ github.actor }}\n*Environment*: https://zenith-platform.com"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send email notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Production Deployment ${{ needs.smoke-tests.result == 'success' && 'Success' || 'Failed' }} - ${{ steps.version.outputs.VERSION }}"
+          body: |
+            Production deployment has ${{ needs.smoke-tests.result == 'success' && 'completed successfully' || 'failed' }}.
+
+            Version: ${{ steps.version.outputs.VERSION }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            Environment: https://zenith-platform.com
+
+            Please verify the deployment.
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Zenith CI/CD

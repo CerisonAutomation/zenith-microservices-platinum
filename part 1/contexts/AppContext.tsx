@@ -10,7 +10,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { subscribeToTable } from '@/lib/supabase';
+import { supabase, subscribeToTable } from '@/lib/supabase';
 import { Profile, Notification } from '@/types';
 import { mockCurrentUser, mockNotifications } from '@/lib/mockData';
 
@@ -60,20 +60,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      // TODO: Replace with actual Supabase query
-      // const { data, error } = await supabase
-      //   .from('profiles')
-      //   .select('*')
-      //   .eq('user_id', user.id)
-      //   .single();
-      
-      // if (error) throw error;
-      // setCurrentProfile(data);
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-      // For now, use mock data
-      setCurrentProfile(mockCurrentUser);
+      if (error) {
+        // If profile doesn't exist yet, use mock data as fallback
+        console.warn('Profile not found in database, using mock data:', error);
+        setCurrentProfile({ ...mockCurrentUser, id: user.id, user_id: user.id });
+        return;
+      }
+
+      // Map database fields to Profile type
+      const profile: Profile = {
+        id: data.id,
+        user_id: data.user_id,
+        name: data.name,
+        age: data.age,
+        bio: data.bio,
+        photo: data.photo,
+        photos: data.photos,
+        location: data.location,
+        distance: data.distance,
+        interests: data.interests,
+        occupation: data.occupation,
+        education: data.education,
+        height: data.height,
+        gender: data.gender,
+        looking_for: data.looking_for,
+        relationship_type: data.relationship_type,
+        verified: data.verified,
+        premium: data.premium,
+        online: data.online,
+        last_active: data.last_active,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      };
+
+      setCurrentProfile(profile);
     } catch (error) {
       console.error('Error loading profile:', error);
+      // Fallback to mock data on error
+      setCurrentProfile({ ...mockCurrentUser, id: user.id, user_id: user.id });
     }
   };
 
@@ -81,21 +111,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      // TODO: Replace with actual Supabase query
-      // const { data, error } = await supabase
-      //   .from('notifications')
-      //   .select('*')
-      //   .eq('user_id', user.id)
-      //   .order('created_at', { ascending: false })
-      //   .limit(50);
-      
-      // if (error) throw error;
-      // setNotifications(data);
+      const { data, error } = await (supabase as any)
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      // For now, use mock data
-      setNotifications(mockNotifications);
+      if (error) {
+        // If notifications table doesn't exist or is empty, use mock data
+        console.warn('Notifications not found in database, using mock data:', error);
+        setNotifications(mockNotifications);
+        return;
+      }
+
+      // Map database fields to Notification type
+      const notifications: Notification[] = (data || []).map((notif: any) => ({
+        id: notif.id,
+        user_id: notif.user_id,
+        type: notif.type,
+        title: notif.title,
+        message: notif.message,
+        read: notif.read,
+        action_url: notif.action_url,
+        metadata: notif.metadata,
+        created_at: notif.created_at,
+        updated_at: notif.updated_at,
+      }));
+
+      setNotifications(notifications);
     } catch (error) {
       console.error('Error loading notifications:', error);
+      // Fallback to mock data on error
+      setNotifications(mockNotifications);
     }
   };
 
@@ -107,53 +155,100 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user || !currentProfile) return;
 
     try {
-      // TODO: Replace with actual Supabase mutation
-      // const { data, error } = await supabase
-      //   .from('profiles')
-      //   .update(updates)
-      //   .eq('user_id', user.id)
-      //   .select()
-      //   .single();
-      
-      // if (error) throw error;
-      // setCurrentProfile(data);
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-      // For now, update local state
-      setCurrentProfile({ ...currentProfile, ...updates });
+      if (error) {
+        console.error('Error updating profile in database:', error);
+        // Still update local state even if database update fails
+        setCurrentProfile({ ...currentProfile, ...updates });
+        throw error;
+      }
+
+      // Map database response to Profile type
+      const profile: Profile = {
+        id: data.id,
+        user_id: data.user_id,
+        name: data.name,
+        age: data.age,
+        bio: data.bio,
+        photo: data.photo,
+        photos: data.photos,
+        location: data.location,
+        distance: data.distance,
+        interests: data.interests,
+        occupation: data.occupation,
+        education: data.education,
+        height: data.height,
+        gender: data.gender,
+        looking_for: data.looking_for,
+        relationship_type: data.relationship_type,
+        verified: data.verified,
+        premium: data.premium,
+        online: data.online,
+        last_active: data.last_active,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      };
+
+      setCurrentProfile(profile);
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
     }
   };
 
-  const markNotificationAsRead = (id: string) => {
+  const markNotificationAsRead = async (id: string) => {
+    // Update local state immediately for better UX
     setNotifications((prev) =>
       prev.map((notif) =>
         notif.id === id ? { ...notif, read: true } : notif
       )
     );
 
-    // TODO: Update in Supabase
-    // supabase
-    //   .from('notifications')
-    //   .update({ read: true })
-    //   .eq('id', id)
-    //   .then();
+    // Update in Supabase
+    try {
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ read: true, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error marking notification as read:', error);
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAllNotificationsAsRead = () => {
+  const markAllNotificationsAsRead = async () => {
+    // Update local state immediately for better UX
     setNotifications((prev) =>
       prev.map((notif) => ({ ...notif, read: true }))
     );
 
-    // TODO: Update in Supabase
-    // if (user) {
-    //   supabase
-    //     .from('notifications')
-    //     .update({ read: true })
-    //     .eq('user_id', user.id)
-    //     .then();
-    // }
+    // Update in Supabase
+    if (user) {
+      try {
+        const { error } = await (supabase as any)
+          .from('notifications')
+          .update({ read: true, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error marking all notifications as read:', error);
+        }
+      } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+      }
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;

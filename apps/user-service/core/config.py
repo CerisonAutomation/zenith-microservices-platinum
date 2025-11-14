@@ -79,10 +79,25 @@ class Settings(BaseModel):
     upload_dir: str = Field(default="uploads", alias="UPLOAD_DIR")
     allowed_extensions: List[str] = Field(default=["jpg", "jpeg", "png", "gif", "mp4", "pdf"], alias="ALLOWED_EXTENSIONS")
 
+    # Elasticsearch
+    elasticsearch_hosts: List[str] = Field(default=["http://localhost:9200"], alias="ELASTICSEARCH_HOSTS")
+    elasticsearch_user: Optional[str] = Field(default=None, alias="ELASTICSEARCH_USER")
+    elasticsearch_password: Optional[str] = Field(default=None, alias="ELASTICSEARCH_PASSWORD")
+    elasticsearch_timeout: int = Field(default=30, alias="ELASTICSEARCH_TIMEOUT")
+    elasticsearch_max_retries: int = Field(default=3, alias="ELASTICSEARCH_MAX_RETRIES")
+    elasticsearch_index_prefix: str = Field(default="zenith", alias="ELASTICSEARCH_INDEX_PREFIX")
+
     # Feature Flags
     enable_2fa: bool = Field(default=True, alias="ENABLE_2FA")
     enable_payments: bool = Field(default=True, alias="ENABLE_PAYMENTS")
     enable_notifications: bool = Field(default=True, alias="ENABLE_NOTIFICATIONS")
+
+    @field_validator('elasticsearch_hosts', mode='before')
+    @classmethod
+    def parse_elasticsearch_hosts(cls, v):
+        if isinstance(v, str):
+            return [host.strip() for host in v.split(',')]
+        return v
 
     @field_validator('cors_origins', mode='before')
     @classmethod

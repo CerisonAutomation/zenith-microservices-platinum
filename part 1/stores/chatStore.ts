@@ -511,9 +511,15 @@ export const useChatStore = create<ChatState>()(
         loadConversations: async () => {
           try {
             set({ isLoading: true, error: null });
-            const userId = 'current-user-id'; // TODO: Get from auth context
+
+            // Get current user from Supabase auth
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              throw new Error('User not authenticated');
+            }
+
             const conversations =
-              await MessagingDomain.getConversations(userId);
+              await MessagingDomain.getConversations(user.id);
 
             const formattedConversations: Conversation[] = conversations.map(
               (msg: Message) => ({
@@ -522,7 +528,7 @@ export const useChatStore = create<ChatState>()(
                 lastMessage: msg,
                 unreadCount: get().unreadCounts[msg.id] || 0,
                 updatedAt: msg.timestamp,
-                isOnline: true, // TODO: Implement online status
+                isOnline: msg.profile?.online || false,
                 conversationType: 'direct',
               }),
             );
@@ -540,9 +546,37 @@ export const useChatStore = create<ChatState>()(
         },
 
         createConversation: async (participantId: string) => {
-          const conversationId = `conv_${Date.now()}_${participantId}`;
-          // TODO: Implement conversation creation in backend
-          return conversationId;
+          try {
+            // Get current user from Supabase auth
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              throw new Error('User not authenticated');
+            }
+
+            // Check if conversation already exists
+            const existingConversations = await MessagingDomain.getConversations(user.id);
+            const existing = existingConversations.find(
+              (conv: Message) =>
+                conv.profile?.id === participantId ||
+                conv.profile?.user_id === participantId
+            );
+
+            if (existing) {
+              return existing.id;
+            }
+
+            // Create a new conversation by sending an initial system message
+            const message = await MessagingDomain.sendMessage(
+              user.id,
+              participantId,
+              'Conversation started'
+            );
+
+            return message.id;
+          } catch (error) {
+            console.error('Error creating conversation:', error);
+            throw error;
+          }
         },
 
         selectConversation: (conversationId: string) => {
@@ -552,13 +586,26 @@ export const useChatStore = create<ChatState>()(
         },
 
         deleteConversation: async (conversationId: string) => {
-          // TODO: Implement conversation deletion
-          set((state: ChatState) => ({
-            conversations: state.conversations.filter(
-              (c: Conversation) => c.id !== conversationId,
-            ),
-            messages: { ...state.messages, [conversationId]: undefined as any },
-          }));
+          try {
+            // Get all messages for this conversation and delete them
+            const messages = get().messages[conversationId] || [];
+
+            // Delete all messages in the conversation
+            for (const message of messages) {
+              await MessagingDomain.deleteMessage(message.id);
+            }
+
+            // Update local state
+            set((state: ChatState) => ({
+              conversations: state.conversations.filter(
+                (c: Conversation) => c.id !== conversationId,
+              ),
+              messages: { ...state.messages, [conversationId]: undefined as any },
+            }));
+          } catch (error) {
+            console.error('Error deleting conversation:', error);
+            throw error;
+          }
         },
 
         // Message Management
@@ -569,19 +616,27 @@ export const useChatStore = create<ChatState>()(
         ) => {
           let tempId: string;
           try {
-            const userId = 'current-user-id'; // TODO: Get from auth context
+            // Get current user from Supabase auth
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              throw new Error('User not authenticated');
+            }
+
             const participant = get().conversations.find(
               (c: Conversation) => c.id === conversationId,
             )?.participants[0];
 
             if (!participant) throw new Error('Conversation not found');
 
+            // Determine receiver ID (could be profile.id or profile.user_id)
+            const receiverId = participant.user_id || participant.id;
+
             // Create optimistic message
             tempId = `temp-${Date.now()}`;
             const optimisticMessage: Message = {
               id: tempId,
-              senderId: userId,
-              receiverId: participant.id,
+              senderId: user.id,
+              receiverId,
               content,
               timestamp: new Date(),
               read: false,
@@ -599,9 +654,11 @@ export const useChatStore = create<ChatState>()(
             const { data, error } = await (supabase as any)
               .from('messages')
               .insert({
-                sender_id: userId,
-                receiver_id: participant.id,
+                sender_id: user.id,
+                receiver_id: receiverId,
                 content,
+                read: false,
+                created_at: new Date().toISOString(),
               })
               .select()
               .single();
@@ -617,7 +674,7 @@ export const useChatStore = create<ChatState>()(
               receiverId: data.receiver_id,
               content: data.content,
               timestamp: new Date(data.created_at),
-              read: data.read,
+              read: data.read || false,
               type: 'text',
             };
 
@@ -643,7 +700,7 @@ export const useChatStore = create<ChatState>()(
                 [conversationId]: (
                   state.optimisticMessages[conversationId] || []
                 ).map((msg: Message) =>
-                  msg.id === tempId
+                  msg.id === tempId!
                     ? { ...msg, sendError: 'Failed to send' }
                     : msg,
                 ),
@@ -661,16 +718,24 @@ export const useChatStore = create<ChatState>()(
 
         loadMessages: async (conversationId: string, before?: Date) => {
           try {
-            const userId = 'current-user-id'; // TODO: Get from auth context
+            // Get current user from Supabase auth
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              throw new Error('User not authenticated');
+            }
+
             const participant = get().conversations.find(
               (c: Conversation) => c.id === conversationId,
             )?.participants[0];
 
             if (!participant) return;
 
+            // Use user_id if available, otherwise use id
+            const partnerId = participant.user_id || participant.id;
+
             const messages = await MessagingDomain.getConversationMessages(
-              userId,
-              participant.id,
+              user.id,
+              partnerId,
             );
 
             set((state: ChatState) => ({
@@ -693,9 +758,16 @@ export const useChatStore = create<ChatState>()(
 
         markAsRead: async (conversationId: string) => {
           try {
+            // Get current user from Supabase auth
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              console.error('User not authenticated');
+              return;
+            }
+
             const messages = get().messages[conversationId] || [];
             const unreadMessages = messages.filter(
-              (m: Message) => !m.read && m.receiverId === 'current-user-id',
+              (m: Message) => !m.read && m.receiverId === user.id,
             );
 
             for (const message of unreadMessages) {
@@ -707,6 +779,12 @@ export const useChatStore = create<ChatState>()(
               conversations: state.conversations.map((c: Conversation) =>
                 c.id === conversationId ? { ...c, unreadCount: 0 } : c,
               ),
+              messages: {
+                ...state.messages,
+                [conversationId]: messages.map((m: Message) =>
+                  m.receiverId === user.id ? { ...m, read: true } : m
+                ),
+              },
             }));
           } catch (error) {
             console.error('Failed to mark messages as read:', error);
@@ -714,30 +792,49 @@ export const useChatStore = create<ChatState>()(
         },
 
         deleteMessage: async (messageId: string) => {
-          // TODO: Implement message deletion
-          set((state: ChatState) => {
-            const newMessages = { ...state.messages };
-            Object.keys(newMessages).forEach((convId) => {
-              newMessages[convId] =
-                newMessages[convId]?.filter(
-                  (m: Message) => m.id !== messageId,
-                ) || [];
+          try {
+            // Delete from Supabase
+            await MessagingDomain.deleteMessage(messageId);
+
+            // Update local state
+            set((state: ChatState) => {
+              const newMessages = { ...state.messages };
+              Object.keys(newMessages).forEach((convId) => {
+                newMessages[convId] =
+                  newMessages[convId]?.filter(
+                    (m: Message) => m.id !== messageId,
+                  ) || [];
+              });
+              return { messages: newMessages };
             });
-            return { messages: newMessages };
-          });
+          } catch (error) {
+            console.error('Failed to delete message:', error);
+            set({
+              error:
+                error instanceof Error
+                  ? error.message
+                  : 'Failed to delete message',
+            });
+          }
         },
 
         // Real-time
-        startRealtime: () => {
-          const userId = 'current-user-id'; // TODO: Get from auth context
-
-          if (get().realtimeSubscription) {
-            get().actions.stopRealtime();
-          }
-
-          set({ connectionStatus: 'connecting' });
-
+        startRealtime: async () => {
           try {
+            // Get current user from Supabase auth
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+              console.error('User not authenticated');
+              set({ connectionStatus: 'error' });
+              return;
+            }
+
+            if (get().realtimeSubscription) {
+              get().actions.stopRealtime();
+            }
+
+            set({ connectionStatus: 'connecting' });
+
             // Subscribe to messages for current user
             const subscription = supabase
               .channel('messages')
@@ -747,7 +844,7 @@ export const useChatStore = create<ChatState>()(
                   event: 'INSERT',
                   schema: 'public',
                   table: 'messages',
-                  filter: `receiver_id=eq.${userId}`,
+                  filter: `receiver_id=eq.${user.id}`,
                 },
                 (payload: any) => {
                   const newMessage = payload.new as any;
@@ -827,6 +924,10 @@ export const useChatStore = create<ChatState>()(
           setTimeout(
             async () => {
               try {
+                // Get current user from Supabase auth
+                const { data: { user } } = await supabase.auth.getUser();
+                const userId = user?.id || 'anonymous';
+
                 const aiResponse = generateAIResponse(
                   content,
                   get().aiPersonality,
@@ -836,7 +937,7 @@ export const useChatStore = create<ChatState>()(
                 const aiMessage: Message = {
                   id: `ai_${Date.now()}`,
                   senderId: 'ai',
-                  receiverId: 'current-user-id',
+                  receiverId: userId,
                   content: aiResponse,
                   timestamp: new Date(),
                   read: false,

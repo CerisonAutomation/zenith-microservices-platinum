@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  username      String?        @unique
+  firstName     String?
+  lastName      String?
+  phoneNumber   String?
+  avatarUrl     String?
+  dateOfBirth   DateTime?
+  gender        String?
+  bio           String?
+  location      String?
+  preferences   Json?
+  verified      Boolean        @default(false)
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  subscriptions Subscription[]
+  sentMessages  Message[]      @relation("SentMessages")
+  receivedMessages Message[]   @relation("ReceivedMessages")
+  bookingsAsUser   Booking[]   @relation("UserBookings")
+  bookingsAsProvider Booking[] @relation("ProviderBookings")
+
+  @@index([email])
+  @@index([username])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Subscription {
+  id              String    @id @default(uuid())
+  userId          String
+  plan            String    // e.g., "free", "premium", "premium_plus"
+  status          String    // e.g., "active", "cancelled", "expired", "pending"
+  startDate       DateTime  @default(now())
+  endDate         DateTime?
+  price           Float
+  currency        String    @default("USD")
+  billingCycle    String    // e.g., "monthly", "yearly"
+  autoRenew       Boolean   @default(true)
+  paymentMethod   String?
+  metadata        Json?
+  cancelledAt     DateTime?
+  cancellationReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([endDate])
+  @@map("subscriptions")
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  senderId    String
+  receiverId  String
+  content     String
+  type        String    @default("text") // e.g., "text", "image", "video", "file"
+  metadata    Json?
+  read        Boolean   @default(false)
+  readAt      DateTime?
+  deleted     Boolean   @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@index([read])
+  @@map("messages")
+}
+
+model Booking {
+  id              String    @id @default(uuid())
+  userId          String
+  providerId      String
+  serviceType     String    // e.g., "date", "event", "consultation"
+  title           String
+  description     String?
+  startTime       DateTime
+  endTime         DateTime
+  location        String?
+  status          String    @default("pending") // e.g., "pending", "confirmed", "cancelled", "completed"
+  price           Float?
+  currency        String    @default("USD")
+  paymentStatus   String    @default("unpaid") // e.g., "unpaid", "paid", "refunded"
+  notes           String?
+  metadata        Json?
+  cancelledAt     DateTime?
+  cancellationReason String?
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            User      @relation("UserBookings", fields: [userId], references: [id], onDelete: Cascade)
+  provider        User      @relation("ProviderBookings", fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([providerId])
+  @@index([startTime])
+  @@index([status])
+  @@index([createdAt])
+  @@map("bookings")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  userId      String?
+  action      String
+  resource    String
+  resourceId  String?
+  changes     Json?
+  ipAddress   String?
+  userAgent   String?
+  success     Boolean   @default(true)
+  errorMessage String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "Zenith Payment Service",
+    "description": "Payment processing service with Stripe integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{payment_service_url}}/health",
+          "host": ["{{payment_service_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Checkout",
+      "item": [
+        {
+          "name": "Create Checkout Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('checkout_session_id', response.sessionId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priceId\": \"price_1234567890\",\n  \"userId\": \"{{user_id}}\",\n  \"email\": \"{{test_email}}\",\n  \"successUrl\": \"https://example.com/success\",\n  \"cancelUrl\": \"https://example.com/cancel\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/checkout/create-session",
+              "host": ["{{payment_service_url}}"],
+              "path": ["checkout", "create-session"]
+            },
+            "description": "Create a Stripe checkout session"
+          }
+        },
+        {
+          "name": "Get Checkout Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/checkout/session/:sessionId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["checkout", "session", ":sessionId"],
+              "variable": [
+                {
+                  "key": "sessionId",
+                  "value": "{{checkout_session_id}}"
+                }
+              ]
+            },
+            "description": "Retrieve checkout session details"
+          }
+        },
+        {
+          "name": "Checkout Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{checkout_session_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/checkout/success",
+              "host": ["{{payment_service_url}}"],
+              "path": ["checkout", "success"]
+            },
+            "description": "Handle successful checkout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"email\": \"{{test_email}}\",\n  \"priceId\": \"price_1234567890\",\n  \"paymentMethodId\": \"pm_1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/subscription/create",
+              "host": ["{{payment_service_url}}"],
+              "path": ["subscription", "create"]
+            },
+            "description": "Create a new subscription"
+          }
+        },
+        {
+          "name": "Get Subscription",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/subscription/:subscriptionId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["subscription", ":subscriptionId"],
+              "variable": [
+                {
+                  "key": "subscriptionId",
+                  "value": "sub_1234567890"
+                }
+              ]
+            },
+            "description": "Get subscription details"
+          }
+        },
+        {
+          "name": "Get User Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/subscription/user/:userId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["subscription", "user", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "{{user_id}}"
+                }
+              ]
+            },
+            "description": "Get all subscriptions for a user"
+          }
+        },
+        {
+          "name": "Update Subscription",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priceId\": \"price_new_plan\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/subscription/update/:subscriptionId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["subscription", "update", ":subscriptionId"],
+              "variable": [
+                {
+                  "key": "subscriptionId",
+                  "value": "sub_1234567890"
+                }
+              ]
+            },
+            "description": "Update subscription plan"
+          }
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/subscription/cancel/:subscriptionId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["subscription", "cancel", ":subscriptionId"],
+              "variable": [
+                {
+                  "key": "subscriptionId",
+                  "value": "sub_1234567890"
+                }
+              ]
+            },
+            "description": "Cancel a subscription"
+          }
+        },
+        {
+          "name": "Reactivate Subscription",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/subscription/reactivate/:subscriptionId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["subscription", "reactivate", ":subscriptionId"],
+              "variable": [
+                {
+                  "key": "subscriptionId",
+                  "value": "sub_1234567890"
+                }
+              ]
+            },
+            "description": "Reactivate a cancelled subscription"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Methods",
+      "item": [
+        {
+          "name": "List Payment Methods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/methods/:customerId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["methods", ":customerId"],
+              "variable": [
+                {
+                  "key": "customerId",
+                  "value": "cus_1234567890"
+                }
+              ]
+            },
+            "description": "List all payment methods for a customer"
+          }
+        },
+        {
+          "name": "Create Setup Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"cus_1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/methods/setup-intent",
+              "host": ["{{payment_service_url}}"],
+              "path": ["methods", "setup-intent"]
+            },
+            "description": "Create a setup intent for adding payment method"
+          }
+        },
+        {
+          "name": "Attach Payment Method",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethodId\": \"pm_1234567890\",\n  \"customerId\": \"cus_1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/methods/attach",
+              "host": ["{{payment_service_url}}"],
+              "path": ["methods", "attach"]
+            },
+            "description": "Attach payment method to customer"
+          }
+        },
+        {
+          "name": "Detach Payment Method",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/methods/:paymentMethodId",
+              "host": ["{{payment_service_url}}"],
+              "path": ["methods", ":paymentMethodId"],
+              "variable": [
+                {
+                  "key": "paymentMethodId",
+                  "value": "pm_1234567890"
+                }
+              ]
+            },
+            "description": "Detach payment method from customer"
+          }
+        },
+        {
+          "name": "Set Default Payment Method",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"cus_1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/methods/:paymentMethodId/default",
+              "host": ["{{payment_service_url}}"],
+              "path": ["methods", ":paymentMethodId", "default"],
+              "variable": [
+                {
+                  "key": "paymentMethodId",
+                  "value": "pm_1234567890"
+                }
+              ]
+            },
+            "description": "Set default payment method"
+          }
+        }
+      ]
+    }
+  ]
+}

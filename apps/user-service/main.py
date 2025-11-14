@@ -22,6 +22,7 @@ import structlog
 from .core.config import settings
 from .core.database import init_db, close_db
 # from .core.cache import init_cache, close_cache
+from .core.elasticsearch import SearchService, close_elasticsearch
 from .core.security import SecurityMiddleware, RateLimitMiddleware
 from .core.monitoring import init_monitoring, metrics_middleware
 from .core.logging import setup_logging
@@ -96,6 +97,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # await init_cache()
     await init_monitoring()
 
+    # Initialize Elasticsearch search service
+    try:
+        search_service = SearchService()
+        await search_service.create_indexes()
+        logger.info("Elasticsearch search service initialized")
+    except Exception as e:
+        logger.error("Elasticsearch initialization warning (search will be limited)", error=str(e))
+
     logger.info("All services initialized successfully")
 
     yield
@@ -104,16 +113,71 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Shutting down Zenith Backend")
     await close_db()
     # await close_cache()
+    await close_elasticsearch()
 
 # Create FastAPI application
 app = FastAPI(
-    title="Zenith Backend API",
-    description="Enterprise microservices platform for modern dating",
+    title="Zenith User Service API",
+    description="""
+# Zenith User Service - Enterprise Microservices Platform
+
+Comprehensive user service for the Zenith dating platform with multiple integrated features:
+
+## Features
+
+* **Authentication**: OAuth, JWT, 2FA support
+* **Chat**: Real-time messaging with WebSockets
+* **Search**: Elasticsearch-powered user search
+* **Payment**: Stripe integration for subscriptions
+* **SMS**: SMS notifications and verification
+* **Blog**: User-generated content management
+* **Forum**: Community discussions
+* **Gallery**: Photo management and galleries
+* **Games**: Interactive mini-games
+* **Newsletter**: Email campaigns and subscriptions
+
+## Authentication
+
+Most endpoints require JWT authentication. Include the token in the Authorization header:
+
+```
+Authorization: Bearer <your-token>
+```
+
+## Rate Limiting
+
+API requests are rate-limited to prevent abuse. Current limits:
+- 100 requests per minute for authenticated users
+- 20 requests per minute for unauthenticated requests
+
+## Support
+
+For API support, contact api@zenith.com
+    """,
     version="2.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
+    contact={
+        "name": "Zenith API Support",
+        "email": "api@zenith.com",
+        "url": "https://zenith.com/support",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    servers=[
+        {
+            "url": "http://localhost:8000",
+            "description": "Development server",
+        },
+        {
+            "url": "https://api.zenith.com",
+            "description": "Production server",
+        },
+    ],
 )
 
 # Security middleware (order matters)
