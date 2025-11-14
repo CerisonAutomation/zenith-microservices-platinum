@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import ExploreTab from '@/components/tabs/ExploreTab';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function FeedPage() {
   return (
@@ -20,7 +21,7 @@ function FeedSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="h-96 bg-muted animate-pulse rounded-lg" />
+        <Skeleton key={i} className="h-96 rounded-lg" />
       ))}
     </div>
   );

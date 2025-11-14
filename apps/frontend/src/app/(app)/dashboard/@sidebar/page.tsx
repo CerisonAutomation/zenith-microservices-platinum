@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Bell, MessageCircle, Heart, Calendar } from 'lucide-react';
 import { Card, Badge } from '@zenith/ui-components';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
 export default function SidebarPage() {
@@ -147,7 +148,7 @@ function MessagesSkeleton() {
   return (
     <div className="space-y-2">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+        <Skeleton key={i} className="h-12" />
       ))}
     </div>
   );
@@ -157,7 +158,7 @@ function NotificationsSkeleton() {
   return (
     <div className="space-y-2">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="h-10 bg-muted animate-pulse rounded" />
+        <Skeleton key={i} className="h-10" />
       ))}
     </div>
   );
