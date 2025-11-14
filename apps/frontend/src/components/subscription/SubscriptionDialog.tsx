@@ -50,35 +50,52 @@ const plans = [
 
 export default function SubscriptionDialog({ open, onOpenChange }: SubscriptionDialogProps) {
   const handleSubscribe = useCallback(async (planId: string) => {
-    // SECURITY FIX #3: Removed hardcoded test key fallback
-    // Stripe key must be properly configured in environment variables
-    const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+    try {
+      // Next.js environment variables must use NEXT_PUBLIC_ prefix for client-side access
+      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY;
 
-    if (!stripeKey) {
-      // SECURITY FIX #9: Don't log missing keys in production (info disclosure)
-      if (process.env.NODE_ENV === 'development') {
-        console.error('VITE_STRIPE_PUBLIC_KEY is not configured');
+      if (!stripeKey) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('NEXT_PUBLIC_STRIPE_PUBLIC_KEY is not configured');
+        }
+        throw new Error('Payment system is not properly configured. Please contact support.');
       }
-      // TODO: Show user-friendly error message
-      throw new Error('Payment system is not properly configured. Please contact support.');
+
+      // Load Stripe with valid public key
+      const stripe = await loadStripe(stripeKey);
+
+      if (!stripe) {
+        throw new Error('Failed to initialize payment system');
+      }
+
+      // Create checkout session via API
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ planId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const session = await response.json();
+
+      // Redirect to Stripe Checkout
+      const result = await stripe.redirectToCheckout({ sessionId: session.id });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Subscription error:', error);
+      // In production, show user-friendly error message
+      alert(error instanceof Error ? error.message : 'An error occurred. Please try again.');
     }
-
-    // SECURITY: Only load Stripe with valid production key
-    const stripe = await loadStripe(stripeKey);
-
-    if (!stripe) {
-      throw new Error('Failed to initialize payment system');
-    }
-
-    // Create checkout session via API
-    // const response = await fetch('/api/create-checkout-session', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ planId })
-    // });
-    // const session = await response.json();
-    // stripe.redirectToCheckout({ sessionId: session.id });
-
-    onOpenChange(false);
   }, [onOpenChange]);
 
   return (

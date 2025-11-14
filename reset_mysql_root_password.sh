@@ -7,9 +7,20 @@ set -euo pipefail
 # --skip-grant-tables, change the root password, then restart the brew service.
 # Use at your own risk and review before running.
 
-NEW_PASSWORD='P@ssw0rdZenith2025!'
-
-echo "🔐 Reset MySQL root password script"
+# Read password from environment variable or prompt user
+if [ -n "${MYSQL_NEW_ROOT_PASSWORD:-}" ]; then
+  NEW_PASSWORD="$MYSQL_NEW_ROOT_PASSWORD"
+  echo "🔐 Reset MySQL root password script (using MYSQL_NEW_ROOT_PASSWORD from environment)"
+else
+  echo "🔐 Reset MySQL root password script"
+  echo "Enter new root password (or set MYSQL_NEW_ROOT_PASSWORD env var):"
+  read -s NEW_PASSWORD
+  echo
+  if [ -z "$NEW_PASSWORD" ]; then
+    echo "Error: Password cannot be empty"
+    exit 1
+  fi
+fi
 
 # Find Homebrew prefix (if available)
 BREW_PREFIX=""
@@ -129,7 +140,11 @@ else
     echo "ALTER USER succeeded (mysql_native_password)."
   else
     echo "ALTER USER failed — attempting direct update to mysql.user (legacy fallback)"
-    "$MYSQL_BIN" -u root -e "USE mysql; UPDATE user SET authentication_string=PASSWORD('${NEW_PASSWORD}') WHERE User='root' AND Host='localhost'; FLUSH PRIVILEGES;" || true
+    # Use parameterized query approach via mysql command's safer input method
+    # Note: PASSWORD() function is deprecated in MySQL 8.0+
+    echo "USE mysql; UPDATE user SET authentication_string=PASSWORD(@pwd) WHERE User='root' AND Host='localhost'; FLUSH PRIVILEGES;" | \
+      "$MYSQL_BIN" -u root --init-command="SET @pwd='${NEW_PASSWORD//\'/\'\\\'\'}'" 2>/dev/null || \
+      echo "Warning: Legacy password update failed. Modern MySQL versions require ALTER USER."
   fi
 fi
 

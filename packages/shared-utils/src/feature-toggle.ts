@@ -1,5 +1,6 @@
 import { OpenFeature } from '@openfeature/js-sdk';
 import { InMemoryProvider } from '@openfeature/in-memory-provider';
+import { logger } from './utils/logger';
 
 // Feature flag definitions
 export enum FeatureFlags {
@@ -33,7 +34,7 @@ export class FeatureToggleService {
     try {
       return await this.client.getBooleanValue(flag, defaultValue);
     } catch (error) {
-      console.warn(`Feature flag evaluation failed for ${flag}:`, error);
+      logger.warn(`Feature flag evaluation failed for ${flag}`, { error, flag, defaultValue });
       return defaultValue;
     }
   }
@@ -42,7 +43,7 @@ export class FeatureToggleService {
     try {
       return await this.client.getStringValue(flag, defaultValue);
     } catch (error) {
-      console.warn(`Feature flag evaluation failed for ${flag}:`, error);
+      logger.warn(`Feature flag evaluation failed for ${flag}`, { error, flag, defaultValue });
       return defaultValue;
     }
   }
@@ -51,7 +52,7 @@ export class FeatureToggleService {
     try {
       return await this.client.getNumberValue(flag, defaultValue);
     } catch (error) {
-      console.warn(`Feature flag evaluation failed for ${flag}:`, error);
+      logger.warn(`Feature flag evaluation failed for ${flag}`, { error, flag, defaultValue });
       return defaultValue;
     }
   }

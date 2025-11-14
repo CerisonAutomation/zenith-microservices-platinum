@@ -29,6 +29,7 @@ export function useRealtimeLocation(options: UseRealtimeLocationOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const hasPositionRef = useRef(false);
 
   // Update location in database
   const updateLocationInDB = useCallback(async (pos: GeolocationPosition) => {
@@ -60,6 +61,7 @@ export function useRealtimeLocation(options: UseRealtimeLocationOptions = {}) {
       timestamp: pos.timestamp
     };
 
+    hasPositionRef.current = true;
     setPosition(locationData);
     setLoading(false);
     setError(null);
@@ -93,13 +95,22 @@ export function useRealtimeLocation(options: UseRealtimeLocationOptions = {}) {
         const result = await navigator.permissions.query({ name: 'geolocation' });
         setPermissionStatus(result.state as 'granted' | 'denied' | 'prompt');
 
-        result.addEventListener('change', () => {
+        // Store the handler so we can remove it later
+        const handlePermissionChange = () => {
           setPermissionStatus(result.state as 'granted' | 'denied' | 'prompt');
-        });
+        };
+
+        result.addEventListener('change', handlePermissionChange);
+
+        // Return cleanup function
+        return () => {
+          result.removeEventListener('change', handlePermissionChange);
+        };
       }
     } catch (err) {
       console.error('Failed to query location permission:', err);
     }
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -109,7 +120,8 @@ export function useRealtimeLocation(options: UseRealtimeLocationOptions = {}) {
       return;
     }
 
-    requestPermission();
+    // Request permission and store cleanup function
+    const permissionCleanup = requestPermission();
 
     // Get initial position
     navigator.geolocation.getCurrentPosition(handlePosition, handleError, {
@@ -130,8 +142,9 @@ export function useRealtimeLocation(options: UseRealtimeLocationOptions = {}) {
     );
 
     // Set up periodic database updates (less frequent than watch for efficiency)
+    // Use a ref to track latest position to avoid dependency on position state
     const intervalId = setInterval(() => {
-      if (position) {
+      if (hasPositionRef.current) {
         navigator.geolocation.getCurrentPosition(handlePosition, handleError, {
           enableHighAccuracy,
           maximumAge: 0, // Force fresh position
@@ -143,8 +156,12 @@ export function useRealtimeLocation(options: UseRealtimeLocationOptions = {}) {
     return () => {
       navigator.geolocation.clearWatch(watchId);
       clearInterval(intervalId);
+      // Clean up permission listener
+      if (permissionCleanup) {
+        permissionCleanup.then(cleanup => cleanup?.());
+      }
     };
-  }, [enableHighAccuracy, maximumAge, timeout, updateInterval, handlePosition, handleError, requestPermission, position]);
+  }, [enableHighAccuracy, maximumAge, timeout, updateInterval, handlePosition, handleError, requestPermission]);
 
   return {
     position,

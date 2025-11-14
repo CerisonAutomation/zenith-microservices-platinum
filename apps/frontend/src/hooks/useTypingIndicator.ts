@@ -77,12 +77,13 @@ export function useTypingIndicator(conversationId: string) {
 export function useSendTypingIndicator(conversationId: string) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Use ref instead of state to avoid stale closure in cleanup
+  const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Get current user ID
+    // Get current user ID and store in ref
     supabase.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id || null);
+      currentUserIdRef.current = data.user?.id || null;
     });
 
     if (!conversationId) return;
@@ -93,12 +94,13 @@ export function useSendTypingIndicator(conversationId: string) {
 
     return () => {
       // Send stopped typing when unmounting
-      if (channelRef.current && currentUserId) {
+      // Use ref to get latest userId (avoids stale closure)
+      if (channelRef.current && currentUserIdRef.current) {
         channelRef.current.send({
           type: 'broadcast',
           event: 'typing',
           payload: {
-            userId: currentUserId,
+            userId: currentUserIdRef.current,
             isTyping: false
           }
         });
@@ -113,16 +115,16 @@ export function useSendTypingIndicator(conversationId: string) {
         channelRef.current = null;
       }
     };
-  }, [conversationId, currentUserId]);
+  }, [conversationId]);
 
   const sendTypingIndicator = useCallback((isTyping: boolean) => {
-    if (!channelRef.current || !currentUserId) return;
+    if (!channelRef.current || !currentUserIdRef.current) return;
 
     channelRef.current.send({
       type: 'broadcast',
       event: 'typing',
       payload: {
-        userId: currentUserId,
+        userId: currentUserIdRef.current,
         isTyping,
         timestamp: Date.now()
       }
@@ -143,7 +145,7 @@ export function useSendTypingIndicator(conversationId: string) {
         timeoutRef.current = null;
       }
     }
-  }, [currentUserId]);
+  }, []);
 
   return sendTypingIndicator;
 }

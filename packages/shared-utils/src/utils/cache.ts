@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { logger } from './logger';
 
 export class CacheService {
   private static instance: CacheService;
@@ -6,8 +7,8 @@ export class CacheService {
 
   private constructor() {
     this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-    this.client.on('error', (err: any) => {
-      console.error('Redis connection error:', err);
+    this.client.on('error', (err: Error) => {
+      logger.error('Redis connection error', err);
     });
   }
 
@@ -22,7 +23,7 @@ export class CacheService {
     try {
       return await this.client.get(key);
     } catch (error) {
-      console.error('Cache get error:', error);
+      logger.error('Cache get error', error as Error, { key });
       return null;
     }
   }
@@ -35,7 +36,7 @@ export class CacheService {
         await this.client.set(key, value);
       }
     } catch (error) {
-      console.error('Cache set error:', error);
+      logger.error('Cache set error', error as Error, { key, ttl });
     }
   }
 
@@ -43,7 +44,7 @@ export class CacheService {
     try {
       await this.client.del(key);
     } catch (error) {
-      console.error('Cache delete error:', error);
+      logger.error('Cache delete error', error as Error, { key });
     }
   }
 
@@ -52,7 +53,7 @@ export class CacheService {
       const result = await this.client.exists(key);
       return result === 1;
     } catch (error) {
-      console.error('Cache exists error:', error);
+      logger.error('Cache exists error', error as Error, { key });
       return false;
     }
   }
@@ -61,7 +62,7 @@ export class CacheService {
     try {
       await this.client.expire(key, ttl);
     } catch (error) {
-      console.error('Cache expire error:', error);
+      logger.error('Cache expire error', error as Error, { key, ttl });
     }
   }
 
@@ -69,7 +70,7 @@ export class CacheService {
     try {
       return await this.client.incr(key);
     } catch (error) {
-      console.error('Cache increment error:', error);
+      logger.error('Cache increment error', error as Error, { key });
       return 0;
     }
   }
@@ -79,7 +80,7 @@ export class CacheService {
     try {
       return await this.client.hget(hash, field);
     } catch (error) {
-      console.error('Cache hget error:', error);
+      logger.error('Cache hget error', error as Error, { hash, field });
       return null;
     }
   }
@@ -88,7 +89,7 @@ export class CacheService {
     try {
       await this.client.hset(hash, field, value);
     } catch (error) {
-      console.error('Cache hset error:', error);
+      logger.error('Cache hset error', error as Error, { hash, field });
     }
   }
 
@@ -96,7 +97,7 @@ export class CacheService {
     try {
       return await this.client.hgetall(hash);
     } catch (error) {
-      console.error('Cache hgetall error:', error);
+      logger.error('Cache hgetall error', error as Error, { hash });
       return {};
     }
   }
@@ -106,7 +107,7 @@ export class CacheService {
     try {
       await this.client.lpush(key, ...values);
     } catch (error) {
-      console.error('Cache lpush error:', error);
+      logger.error('Cache lpush error', error as Error, { key, valueCount: values.length });
     }
   }
 
@@ -114,7 +115,7 @@ export class CacheService {
     try {
       return await this.client.rpop(key);
     } catch (error) {
-      console.error('Cache rpop error:', error);
+      logger.error('Cache rpop error', error as Error, { key });
       return null;
     }
   }
@@ -123,7 +124,7 @@ export class CacheService {
     try {
       return await this.client.llen(key);
     } catch (error) {
-      console.error('Cache llen error:', error);
+      logger.error('Cache llen error', error as Error, { key });
       return 0;
     }
   }
