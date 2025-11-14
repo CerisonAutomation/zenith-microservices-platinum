@@ -1,8 +1,5 @@
 import { Crown, Check, Zap, Star } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Button } from "../ui/button";
-import { Card } from "../ui/card";
-import { Badge } from "../ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Card, Badge } from "@zenith/ui-components";
 import { loadStripe } from "@stripe/stripe-js";
 
 interface SubscriptionDialogProps {
