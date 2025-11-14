@@ -1,7 +1,22 @@
+/**
+ * AXIOM:1 COMPLIANT AI CONTENT MODERATION
+ *
+ * Vercel AI SDK implementation with:
+ * - Hybrid moderation (AI + custom rules)
+ * - Enterprise-grade error handling
+ * - Automatic retries and fallbacks
+ * - Comprehensive logging
+ *
+ * Oracle Tier Standards:
+ * - <50ms p95 response time
+ * - 99.999%+ uptime
+ * - Comprehensive audit logging
+ */
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { moderateContent as moderateWithAI } from '../_shared/ai-client.ts';
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -91,27 +106,25 @@ async function moderateContent(
     };
   }
 
-  // Use OpenAI Moderation API if available
-  if (OPENAI_API_KEY) {
-    try {
-      const openaiResult = await moderateWithOpenAI(content);
+  // Use AI Moderation API (with retries and fallbacks)
+  try {
+    const openaiResult = await moderateWithOpenAI(content);
 
-      // Combine OpenAI results with custom rules
-      const allCategories = [...new Set([...openaiResult.categories, ...customFlags.categories])];
-      const maxSeverity = getMaxSeverity(openaiResult.severity, customFlags.severity);
-      const combinedConfidence = Math.max(openaiResult.confidence, customFlags.confidence);
+    // Combine AI results with custom rules
+    const allCategories = [...new Set([...openaiResult.categories, ...customFlags.categories])];
+    const maxSeverity = getMaxSeverity(openaiResult.severity, customFlags.severity);
+    const combinedConfidence = Math.max(openaiResult.confidence, customFlags.confidence);
 
-      return {
-        flagged: openaiResult.flagged || customFlags.categories.length > 0,
-        categories: allCategories,
-        severity: maxSeverity,
-        action: determineAction(allCategories, maxSeverity),
-        confidence: combinedConfidence,
-        reason: openaiResult.reason || customFlags.reason
-      };
-    } catch (error) {
-      console.error('OpenAI moderation failed, using custom rules only:', error);
-    }
+    return {
+      flagged: openaiResult.flagged || customFlags.categories.length > 0,
+      categories: allCategories,
+      severity: maxSeverity,
+      action: determineAction(allCategories, maxSeverity),
+      confidence: combinedConfidence,
+      reason: openaiResult.reason || customFlags.reason
+    };
+  } catch (error) {
+    console.error('AI moderation failed after retries, using custom rules only:', error);
   }
 
   // Fallback to custom rules only
@@ -126,37 +139,25 @@ async function moderateContent(
 }
 
 async function moderateWithOpenAI(content: string): Promise<ModerationResult> {
-  const response = await fetch('https://api.openai.com/v1/moderations', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ input: content })
-  });
+  try {
+    // Use AXIOM:1 compliant AI client with retries and fallbacks
+    const result = await moderateWithAI(content);
 
-  if (!response.ok) {
+    const severity = calculateSeverity(result.scores);
+    const maxScore = Math.max(...Object.values(result.scores));
+
+    return {
+      flagged: result.flagged,
+      categories: result.categories,
+      severity,
+      action: 'allow', // Will be determined by combineResults
+      confidence: maxScore,
+      reason: result.categories.length > 0 ? `Flagged for: ${result.categories.join(', ')}` : undefined
+    };
+  } catch (error) {
+    console.error('AI moderation failed:', error);
     throw new Error('OpenAI moderation API error');
   }
-
-  const data = await response.json();
-  const result = data.results[0];
-
-  const categories: string[] = Object.entries(result.categories)
-    .filter(([_, flagged]) => flagged)
-    .map(([category]) => category);
-
-  const severity = calculateSeverity(result.category_scores);
-  const maxScore = Math.max(...Object.values(result.category_scores));
-
-  return {
-    flagged: result.flagged,
-    categories,
-    severity,
-    action: 'allow', // Will be determined by combineResults
-    confidence: maxScore,
-    reason: categories.length > 0 ? `Flagged for: ${categories.join(', ')}` : undefined
-  };
 }
 
 interface CustomRulesResult {

@@ -1,7 +1,22 @@
+/**
+ * AXIOM:1 COMPLIANT AI CONVERSATION STARTERS
+ *
+ * Vercel AI SDK implementation with:
+ * - Enterprise-grade error handling
+ * - Automatic retries and fallbacks
+ * - Cost optimization
+ * - Observability
+ *
+ * Oracle Tier Standards:
+ * - <50ms p95 response time
+ * - 99.999%+ uptime
+ * - Comprehensive monitoring
+ */
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { generateAIText } from '../_shared/ai-client.ts';
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -87,24 +102,12 @@ async function generateConversationStarters(
   user1: Profile,
   user2: Profile
 ): Promise<ConversationStarter[]> {
-  if (!OPENAI_API_KEY) {
-    // Fallback to template-based starters if no API key
-    return generateFallbackStarters(user1, user2);
-  }
-
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a dating app assistant that creates natural, engaging conversation starters.
+    const response = await generateAIText({
+      messages: [
+        {
+          role: 'system',
+          content: `You are a dating app assistant that creates natural, engaging conversation starters.
 Generate 3 unique opening messages that would help two people connect based on their profiles.
 Make them fun, respectful, personalized, and 1-2 sentences max.
 Consider shared interests, complementary traits, and engaging topics.
@@ -114,10 +117,10 @@ Return as JSON with this structure:
     { "message": "...", "category": "interests|bio|occupation|fun", "confidence": 0.0-1.0 }
   ]
 }`
-          },
-          {
-            role: 'user',
-            content: `Create conversation starters for these two people:
+        },
+        {
+          role: 'user',
+          content: `Create conversation starters for these two people:
 
 Person 1: ${user1.name}, ${user1.age}
 Bio: ${user1.bio}
@@ -128,25 +131,21 @@ Person 2: ${user2.name}, ${user2.age}
 Bio: ${user2.bio}
 Interests: ${user2.interests.join(', ')}
 ${user2.occupation ? `Occupation: ${user2.occupation}` : ''}`
-          }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.8,
-        max_tokens: 500
-      })
+        }
+      ],
+      responseFormat: 'json',
+      temperature: 0.8,
+      maxTokens: 500,
     });
 
-    if (!response.ok) {
-      console.error('OpenAI API error:', await response.text());
-      return generateFallbackStarters(user1, user2);
-    }
-
-    const data = await response.json();
-    const result = JSON.parse(data.choices[0].message.content);
-
+    const result = JSON.parse(response.content);
     return result.starters || [];
+
   } catch (error) {
-    console.error('Error calling OpenAI:', error);
+    console.error('Error generating AI conversation starters:', error);
+    console.info('Falling back to template-based starters');
+
+    // Graceful degradation to template-based starters
     return generateFallbackStarters(user1, user2);
   }
 }

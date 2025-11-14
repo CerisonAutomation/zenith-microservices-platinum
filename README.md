@@ -24,6 +24,7 @@ Zenith is a **production-ready, enterprise-grade dating platform** built with mo
 - **🔒 Security First** - End-to-end encryption, GDPR compliance, audit trails
 - **📱 Responsive Design** - Mobile-first UI with accessibility (WCAG 2.1 AA)
 - **🚀 High Performance** - Optimized for scale with Redis caching and async processing
+- **🤖 AI-Powered Features** - AXIOM:1 compliant AI with conversation starters, content moderation, and Oracle Tier standards
 
 ## 🏗️ Architecture
 
@@ -57,6 +58,7 @@ Zenith is a **production-ready, enterprise-grade dating platform** built with mo
 | **Newsletter** | FastAPI + Email Service | Campaign management |
 | **SMS** | FastAPI + Twilio | SMS verification |
 | **2FA** | FastAPI + TOTP | Two-factor authentication |
+| **AI Services** | Supabase Edge + Multi-Provider | AI conversation starters, content moderation |
 
 ## 🚀 Quick Start
 
@@ -342,6 +344,35 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with modern web technologies and best practices
 - Inspired by leading dating platforms and enterprise applications
 - Thanks to the open-source community for amazing tools and libraries
+
+## 📚 Documentation
+
+### Core Documentation
+- **[AXIOM:1 AI Audit](docs/AXIOM_1_VERCEL_AI_AUDIT.md)** - Comprehensive AI compliance audit and source of truth
+- **[AI Implementation Guide](docs/AI_IMPLEMENTATION_GUIDE.md)** - Complete guide for AI/LLM features
+- **[Zenith Framework Quickstart](ZENITH_FRAMEWORK_QUICKSTART.md)** - Framework standards and tier system
+- **[Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)** - Deployment procedures
+- **[UI/UX Design Spec](docs/UI_UX_DESIGN_SPEC.md)** - Design system specifications
+
+### AI/LLM Features (AXIOM:1 Compliant)
+
+The platform implements **Oracle Tier AI standards** based on Vercel's best practices:
+
+- ✅ **Enterprise-grade error handling** with automatic retries and exponential backoff
+- ✅ **Multi-provider fallback** (OpenAI → Anthropic → Google)
+- ✅ **Circuit breaker pattern** for provider health tracking
+- ✅ **Comprehensive observability** with token usage and cost tracking
+- ✅ **Cost optimization** with configurable model selection
+- ✅ **Content moderation** with hybrid AI + custom rules
+- ✅ **Real-time monitoring** with anomaly detection
+
+**Target SLAs:**
+- Response Time (p95): <50ms
+- Uptime: 99.999%+
+- Error Rate: <0.1%
+- Cost Monitoring: Real-time with daily caps
+
+See [AI Implementation Guide](docs/AI_IMPLEMENTATION_GUIDE.md) for complete details.
 
 ## 📞 Support
 
