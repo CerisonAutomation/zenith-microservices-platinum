@@ -116,7 +116,7 @@
   "rewrites": [
     {
       "source": "/api/ai/gateway/:path*",
-      "destination": "https://gateway.vercel.ai/v1/:path*"
+      "destination": "https://ai-gateway.vercel.sh/v1/:path*"
     }
   ],
   "cleanUrls": true,
