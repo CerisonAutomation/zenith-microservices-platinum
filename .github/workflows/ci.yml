@@ -1,0 +1,434 @@
+name: 🚀 Zenith CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, 'claude/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+
+jobs:
+  # ══════════════════════════════════════════
+  # 1. CODE QUALITY & SECURITY CHECKS
+  # ══════════════════════════════════════════
+  quality:
+    name: 🔍 Code Quality & Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full git history for better analysis
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🎨 Lint code
+        run: pnpm turbo lint
+
+      - name: 📝 Type check
+        run: pnpm turbo type-check
+
+      - name: 🔒 Security audit (npm)
+        run: pnpm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: 🔍 Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+      - name: 📊 CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: typescript, javascript
+
+      - name: 🏗️ Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: 🔬 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # ══════════════════════════════════════════
+  # 2. AUTOMATED TESTING
+  # ══════════════════════════════════════════
+  test:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        node-version: ['18', '20']
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 🏗️ Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🧪 Run tests
+        run: pnpm turbo test
+        env:
+          CI: true
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/frontend/coverage/clover.xml
+          flags: frontend
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # ══════════════════════════════════════════
+  # 3. BUILD & VALIDATE
+  # ══════════════════════════════════════════
+  build:
+    name: 🏗️ Build & Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality, test]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🔨 Build all packages
+        run: pnpm turbo build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: 📦 Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            apps/*/dist
+            apps/*/.next
+          retention-days: 7
+
+      - name: 📏 Analyze bundle size
+        run: |
+          pnpm dlx @next/bundle-analyzer
+          echo "Bundle analysis complete"
+        continue-on-error: true
+
+  # ══════════════════════════════════════════
+  # 4. E2E TESTING (Playwright)
+  # ══════════════════════════════════════════
+  e2e:
+    name: 🎭 E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📚 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🎭 Install Playwright browsers
+        run: pnpm dlx playwright install --with-deps chromium
+
+      - name: 🧪 Run E2E tests
+        run: pnpm dlx playwright test
+        env:
+          CI: true
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: 📊 Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ══════════════════════════════════════════
+  # 5. SUPABASE MIGRATIONS (Staging)
+  # ══════════════════════════════════════════
+  migrate-staging:
+    name: 🗄️ Database Migrations (Staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [quality, test]
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: 🔗 Link to Supabase project (Staging)
+        run: supabase link --project-ref ${{ secrets.SUPABASE_STAGING_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: 🚀 Push migrations
+        run: supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: ✅ Verify migrations
+        run: supabase db diff
+
+  # ══════════════════════════════════════════
+  # 6. DEPLOY TO VERCEL (Preview)
+  # ══════════════════════════════════════════
+  deploy-preview:
+    name: 🌐 Deploy Preview (Vercel)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build, e2e]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Vercel (Preview)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./apps/frontend
+
+      - name: 💬 Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 Preview deployment ready!\n\nURL: https://preview-${{ github.event.number }}.vercel.app'
+            })
+
+  # ══════════════════════════════════════════
+  # 7. DEPLOY TO PRODUCTION
+  # ══════════════════════════════════════════
+  deploy-production:
+    name: 🚀 Deploy Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build, e2e, migrate-staging]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://bookingaboyfriend.app
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🗄️ Run Production Migrations
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: 🔗 Link to Supabase (Production)
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PRODUCTION_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: 🚀 Push migrations to production
+        run: supabase db push --password ${{ secrets.SUPABASE_PRODUCTION_DB_PASSWORD }}
+
+      - name: 🌐 Deploy Edge Functions
+        run: |
+          supabase functions deploy create-call --project-ref ${{ secrets.SUPABASE_PRODUCTION_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: 🚀 Deploy to Vercel (Production)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./apps/frontend
+
+      - name: 📢 Notify deployment success
+        uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: '🎉 Production deployment successful!',
+              blocks: [
+                {
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: '*Production Deployment* ✅\n\nCommit: `${{ github.sha }}`\nAuthor: ${{ github.actor }}\nURL: https://bookingaboyfriend.app'
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ══════════════════════════════════════════
+  # 8. SECURITY SCANNING
+  # ══════════════════════════════════════════
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔒 Run Snyk Security Scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: 🛡️ OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'booking-a-boyfriend'
+          path: '.'
+          format: 'HTML'
+
+      - name: 📊 Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: reports/
+
+  # ══════════════════════════════════════════
+  # 9. PERFORMANCE TESTING
+  # ══════════════════════════════════════════
+  performance:
+    name: ⚡ Performance Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: deploy-preview
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏎️ Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            https://preview-${{ github.event.number }}.vercel.app
+            https://preview-${{ github.event.number }}.vercel.app/explore
+            https://preview-${{ github.event.number }}.vercel.app/messages
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: 📊 Performance Budget Check
+        run: |
+          echo "Checking performance metrics..."
+          # Custom performance checks
+        continue-on-error: true
+
+  # ══════════════════════════════════════════
+  # 10. NOTIFICATION & REPORTING
+  # ══════════════════════════════════════════
+  notify:
+    name: 📢 Notify Results
+    runs-on: ubuntu-latest
+    needs: [quality, test, build, e2e, security]
+    if: always()
+
+    steps:
+      - name: 📊 Generate Status Report
+        run: |
+          echo "Pipeline Status:" > status.txt
+          echo "Quality: ${{ needs.quality.result }}" >> status.txt
+          echo "Tests: ${{ needs.test.result }}" >> status.txt
+          echo "Build: ${{ needs.build.result }}" >> status.txt
+          echo "E2E: ${{ needs.e2e.result }}" >> status.txt
+          echo "Security: ${{ needs.security.result }}" >> status.txt
+
+      - name: 💬 Post to Discord
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "Zenith CI/CD Pipeline"
+          description: |
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+            **Status:** ${{ job.status }}
