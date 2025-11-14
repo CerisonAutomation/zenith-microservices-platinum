@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Label, Button, Badge } from "@zenith/ui-components";
 import { Slider } from "../ui/slider";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { X } from "lucide-react";
 
 interface FilterDialogProps {
@@ -17,11 +17,21 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
     "Bear", "Otter", "Twink", "Jock", "Geek", "Leather", "Daddy", "Poz", "Clean-Cut", "Rugged"
   ];
 
-  const toggleTribe = (tribe: string) => {
+  const toggleTribe = useCallback((tribe: string) => {
     setSelectedTribes(prev =>
       prev.includes(tribe) ? prev.filter(t => t !== tribe) : [...prev, tribe]
     );
-  };
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setAgeRange([18, 50]);
+    setDistance([10]);
+    setSelectedTribes([]);
+  }, []);
+
+  const handleApply = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,17 +103,13 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
             <Button
               variant="outline"
               className="flex-1 border-white/20 hover:bg-white/10"
-              onClick={() => {
-                setAgeRange([18, 50]);
-                setDistance([10]);
-                setSelectedTribes([]);
-              }}
+              onClick={handleReset}
             >
               Reset
             </Button>
             <Button
               className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              onClick={() => onOpenChange(false)}
+              onClick={handleApply}
             >
               Apply Filters
             </Button>
