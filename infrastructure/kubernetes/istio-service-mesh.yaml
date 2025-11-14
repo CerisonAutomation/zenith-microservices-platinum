@@ -1,0 +1,264 @@
+# Istio Service Mesh Configuration for advanced traffic management, observability, and security
+---
+# Enable Istio sidecar injection for production namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zenith-production
+  labels:
+    istio-injection: enabled
+---
+# Virtual Service for Frontend - Advanced traffic routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: zenith-frontend-vs
+  namespace: zenith-production
+spec:
+  hosts:
+  - bookingaboyfriend.app
+  - www.bookingaboyfriend.app
+  gateways:
+  - zenith-gateway
+  http:
+  # Canary deployment - 10% to v2, 90% to v1
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: zenith-frontend
+        subset: v2
+  - route:
+    - destination:
+        host: zenith-frontend
+        subset: v1
+      weight: 90
+    - destination:
+        host: zenith-frontend
+        subset: v2
+      weight: 10
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure,refused-stream
+---
+# Virtual Service for Backend
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: zenith-backend-vs
+  namespace: zenith-production
+spec:
+  hosts:
+  - zenith-backend
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1
+    route:
+    - destination:
+        host: zenith-backend
+        subset: v1
+    timeout: 15s
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+---
+# Destination Rule for Frontend - Circuit breaker and load balancing
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: zenith-frontend-dr
+  namespace: zenith-production
+spec:
+  host: zenith-frontend
+  trafficPolicy:
+    loadBalancer:
+      consistentHash:
+        httpCookie:
+          name: zenith-session
+          ttl: 3600s
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
+      minHealthPercent: 40
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+---
+# Destination Rule for Backend
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: zenith-backend-dr
+  namespace: zenith-production
+spec:
+  host: zenith-backend
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Gateway configuration
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: zenith-gateway
+  namespace: zenith-production
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: zenith-tls-cert
+    hosts:
+    - bookingaboyfriend.app
+    - www.bookingaboyfriend.app
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+    tls:
+      httpsRedirect: true
+---
+# PeerAuthentication - mTLS enforcement
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: zenith-production
+spec:
+  mtls:
+    mode: STRICT
+---
+# AuthorizationPolicy - Fine-grained access control
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: zenith-backend-authz
+  namespace: zenith-production
+spec:
+  selector:
+    matchLabels:
+      app: zenith-backend
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/zenith-production/sa/zenith-frontend"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/api/*"]
+  - from:
+    - source:
+        namespaces: ["monitoring"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/metrics", "/health"]
+---
+# RequestAuthentication - JWT validation
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: zenith-production
+spec:
+  selector:
+    matchLabels:
+      app: zenith-backend
+  jwtRules:
+  - issuer: "https://bookingaboyfriend.app"
+    jwksUri: "https://bookingaboyfriend.app/.well-known/jwks.json"
+    forwardOriginalToken: true
+---
+# Telemetry configuration
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: telemetry-config
+  namespace: zenith-production
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+    dimensions:
+      request_method:
+        value: request.method
+      response_code:
+        value: response.code
+      destination_service:
+        value: destination.service.name
+  accessLogging:
+  - providers:
+    - name: envoy
+---
+# ServiceEntry for external Supabase API
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: supabase-external
+  namespace: zenith-production
+spec:
+  hosts:
+  - "*.supabase.co"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+# ServiceEntry for Daily.co video API
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: daily-co-external
+  namespace: zenith-production
+spec:
+  hosts:
+  - "api.daily.co"
+  - "*.daily.co"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
