@@ -1,4 +1,6 @@
-import { useState, useCallback } from "react";
+'use client';
+
+import { useState, useCallback, memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Search, MoreVertical } from "lucide-react";
 import { Input, Avatar, AvatarFallback, AvatarImage, Badge } from "@zenith/ui-components";
@@ -34,12 +36,15 @@ const mockChats = [
   },
 ];
 
-export default function MessagesTab() {
+const MessagesTab = memo(function MessagesTab() {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredChats = mockChats.filter(chat =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredChats = useMemo(() =>
+    mockChats.filter(chat =>
+      chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [searchQuery]
   );
 
   const handleBackToList = useCallback(() => {
@@ -131,4 +136,6 @@ export default function MessagesTab() {
       </div>
     </div>
   );
-}
+});
+
+export default MessagesTab;

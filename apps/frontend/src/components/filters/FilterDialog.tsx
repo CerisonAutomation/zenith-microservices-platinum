@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Label, Button, Badge } from "@zenith/ui-components";
 import { Slider } from "../ui/slider";
-import { useState, useCallback } from "react";
+import { useState, useCallback, memo } from "react";
 import { X } from "lucide-react";
 import { DEFAULT_MIN_AGE, DEFAULT_MAX_AGE, MIN_AGE, MAX_AGE, DEFAULT_DISTANCE, MIN_DISTANCE, MAX_DISTANCE, TRIBES } from "@/constants/app";
 
@@ -9,7 +9,7 @@ interface FilterDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) {
+const FilterDialog = memo(function FilterDialog({ open, onOpenChange }: FilterDialogProps) {
   const [ageRange, setAgeRange] = useState([DEFAULT_MIN_AGE, DEFAULT_MAX_AGE]);
   const [distance, setDistance] = useState([DEFAULT_DISTANCE]);
   const [selectedTribes, setSelectedTribes] = useState<string[]>([]);
@@ -115,4 +115,6 @@ export default function FilterDialog({ open, onOpenChange }: FilterDialogProps) 
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+export default FilterDialog;

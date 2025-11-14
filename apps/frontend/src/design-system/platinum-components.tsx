@@ -98,7 +98,7 @@ export const PlatinumButton = forwardRef<HTMLButtonElement, PlatinumButtonProps>
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-        {...(props as any)}
+        {...props}
       >
         {/* Loading spinner */}
         {loading && (
@@ -335,7 +335,7 @@ export const PlatinumCard = forwardRef<HTMLDivElement, PlatinumCardProps>(
         className={baseClasses}
         whileHover={hover ? { y: -4 } : {}}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        {...(props as any)}
+        {...props}
       >
         {children}
       </motion.div>
@@ -427,7 +427,7 @@ export const PlatinumAvatar = forwardRef<HTMLImageElement, PlatinumAvatarProps>(
             animate={{ opacity: imageLoaded ? 1 : 0 }}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
-            {...(props as any)}
+            {...props}
           />
         )}
         

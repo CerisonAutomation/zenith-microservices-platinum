@@ -1,8 +1,9 @@
 import { Wallet as WalletIcon, Coins, Crown, Eye, EyeOff, Plane, Zap } from "lucide-react";
 import { Card, Button, Badge } from "@zenith/ui-components";
 import { Progress } from "../ui/progress";
+import { memo } from "react";
 
-export default function WalletTab() {
+const WalletTab = memo(function WalletTab() {
   return (
     <div className="min-h-screen pb-6">
       {/* Header */}
@@ -186,4 +187,6 @@ export default function WalletTab() {
       </div>
     </div>
   );
-}
+});
+
+export default WalletTab;

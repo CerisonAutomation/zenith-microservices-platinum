@@ -85,7 +85,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
           <div className="flex items-center gap-4">
             <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-amber-500">
               {profile.avatar_url ? (
-                <Image src={profile.avatar_url} alt={profile.name} fill className="object-cover" />
+                <Image src={profile.avatar_url} alt={profile.name} fill sizes="96px" className="object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white text-3xl font-bold">
                   {profile.name?.[0] || '?'}
@@ -128,7 +128,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {profile.photos.map((photo: string, idx: number) => (
                   <div key={idx} className="relative aspect-square rounded-lg overflow-hidden">
-                    <Image src={photo} alt={`Photo ${idx + 1}`} fill className="object-cover" />
+                    <Image src={photo} alt={`Photo ${idx + 1}`} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
                   </div>
                 ))}
               </div>

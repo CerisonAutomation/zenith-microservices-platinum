@@ -25,28 +25,43 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-purple-900 via-black to-pink-900">
+      {/* Skip to main content link for keyboard navigation */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-pink-500 focus:text-white focus:rounded-md focus:font-semibold"
+      >
+        Skip to main content
+      </a>
+
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/50 backdrop-blur">
         <div className="container flex h-16 items-center justify-between px-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <Heart className="h-6 w-6 text-pink-500" fill="currentColor" />
+          <Link to="/" className="flex items-center gap-2" aria-label="DatingApp home">
+            <Heart className="h-6 w-6 text-pink-500" fill="currentColor" aria-hidden="true" />
             <span className="text-xl font-bold text-white">DatingApp</span>
           </Link>
 
           {/* Right side */}
-          <div className="flex items-center gap-4">
+          <nav className="flex items-center gap-4" aria-label="User menu">
             {/* Notifications */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative text-white">
-                  <Bell className="h-5 w-5" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative text-white"
+                  aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+                >
+                  <Bell className="h-5 w-5" aria-hidden="true" />
                   {unreadCount > 0 && (
                     <Badge
                       variant="destructive"
                       className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                      aria-label={`${unreadCount} unread notifications`}
+                      role="status"
                     >
-                      {unreadCount > 9 ? '9+' : unreadCount}
+                      <span aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>
                     </Badge>
                   )}
                 </Button>
@@ -127,7 +142,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </header>
 
       {/* Main content */}
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1">{children}</main>
 
       {/* Footer */}
       <footer className="border-t border-white/10 bg-black/50 backdrop-blur py-6">
@@ -136,17 +151,17 @@ export function MainLayout({ children }: MainLayoutProps) {
             <p className="text-sm text-white/60">
               © 2025 DatingApp. All rights reserved.
             </p>
-            <div className="flex gap-4 text-sm text-white/60">
+            <nav className="flex gap-4 text-sm text-white/60" aria-label="Footer navigation">
               <Link to="/privacy" className="hover:text-white transition">
-                Privacy
+                Privacy Policy
               </Link>
               <Link to="/terms" className="hover:text-white transition">
-                Terms
+                Terms of Service
               </Link>
               <Link to="/support" className="hover:text-white transition">
                 Support
               </Link>
-            </div>
+            </nav>
           </div>
         </div>
       </footer>

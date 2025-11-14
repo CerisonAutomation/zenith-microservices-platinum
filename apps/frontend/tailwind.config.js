@@ -7,6 +7,10 @@ module.exports = {
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
   ],
+  safelist: [
+    'animate-spin',
+    'animate-pulse',
+  ],
   prefix: "",
   theme: {
     container: {

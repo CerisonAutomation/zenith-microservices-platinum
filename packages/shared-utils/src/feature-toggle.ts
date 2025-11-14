@@ -1,5 +1,6 @@
 import { OpenFeature } from '@openfeature/js-sdk';
 import { InMemoryProvider } from '@openfeature/in-memory-provider';
+import { Request, Response, NextFunction } from 'express';
 
 // Feature flag definitions
 export enum FeatureFlags {
@@ -74,7 +75,7 @@ export class FeatureToggleService {
 
 // Middleware for conditional feature access
 export const requireFeature = (flag: FeatureFlags) => {
-  return async (req: any, res: any, next: any) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     const isEnabled = await FeatureToggleService.isEnabled(flag, false);
     if (!isEnabled) {
       return res.status(403).json({

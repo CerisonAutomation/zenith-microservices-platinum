@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, memo, useMemo } from "react";
 import { ArrowLeft, Send, Image, Mic, Smile, MoreVertical } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, Input, Button } from "@zenith/ui-components";
 import { motion } from "framer-motion";
@@ -23,7 +23,7 @@ const mockMessages = [
   { id: "4", text: "That sounds perfect! When are you free?", sent: true, timestamp: "10:36 AM" },
 ];
 
-export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
+const ChatWindow = memo(function ChatWindow({ chat, onBack }: ChatWindowProps) {
   const [message, setMessage] = useState("");
   const [messages] = useState(mockMessages);
 
@@ -158,4 +158,6 @@ export default function ChatWindow({ chat, onBack }: ChatWindowProps) {
       </div>
     </div>
   );
-}
+});
+
+export default ChatWindow;

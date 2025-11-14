@@ -1,5 +1,8 @@
+'use client';
+
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
+import { memo } from "react";
 import ProfileCard from "../profile/ProfileCard";
 
 const mockFavorites = [
@@ -35,7 +38,7 @@ const mockFavorites = [
   },
 ];
 
-export default function FavoritesTab() {
+const FavoritesTab = memo(function FavoritesTab() {
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -81,4 +84,6 @@ export default function FavoritesTab() {
       </div>
     </div>
   );
-}
+});
+
+export default FavoritesTab;

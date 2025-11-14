@@ -6,7 +6,7 @@ export class CacheService {
 
   private constructor() {
     this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-    this.client.on('error', (err: any) => {
+    this.client.on('error', (err: Error) => {
       console.error('Redis connection error:', err);
     });
   }

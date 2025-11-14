@@ -17,14 +17,26 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import { createClient, isSupabaseConfigured } from '../utils/supabase/client';
 import { api, authAPI } from '../lib/api';
 import { mockUser } from '../lib/mockData';
-import { useToast } from '../components/ui/use-toast';
+import { useToast } from '../hooks/useToast';
+
+interface UserMetadata {
+  name?: string;
+  avatar?: string;
+  isPremium?: boolean;
+  fullName?: string;
+  age?: number;
+  gender?: string;
+  bio?: string;
+  interests?: string[];
+  [key: string]: unknown;
+}
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, metadata?: any) => Promise<void>;
+  signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithOAuth: (provider: 'google' | 'facebook' | 'apple') => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -225,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, metadata?: any) => {
+  const signUp = async (email: string, password: string, metadata?: UserMetadata) => {
     if (isDemoMode) {
       toast({
         title: 'Demo Mode',

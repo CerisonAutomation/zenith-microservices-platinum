@@ -14,7 +14,11 @@ export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   addToast: (toast) => {
     const id = Math.random().toString(36).substring(7)
-    const newToast = { ...toast, id }
+    const newToast = {
+      ...toast,
+      id,
+      variant: toast.type === 'error' ? 'destructive' : 'default'
+    }
 
     set((state) => ({
       toasts: [...state.toasts, newToast],
@@ -37,9 +41,10 @@ export const useToastStore = create<ToastStore>((set) => ({
 }))
 
 export function useToast() {
-  const { addToast, removeToast, clearAll } = useToastStore()
+  const { addToast, removeToast, clearAll, toasts } = useToastStore()
 
   return {
+    toasts,
     toast: (options: Omit<Toast, 'id'>) => addToast(options),
     success: (title: string, description?: string) =>
       addToast({ title, description, type: 'success', duration: 5000 }),

@@ -3,13 +3,57 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     optimizeCss: true,
+    // Enable webpack build worker for faster builds
+    webpackBuildWorker: true,
+    // Optimize package imports to reduce bundle size
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-tooltip',
+      'framer-motion',
+    ],
   },
+  // Performance optimizations
+  swcMinify: true,
+  reactStrictMode: true,
+  poweredByHeader: false,
+
+  // Image optimization
   images: {
     domains: ['images.unsplash.com', 'supabase.co'],
     formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+
+  // Compiler options
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
+    // Enable SWC transforms for better performance
+    styledComponents: false,
+    emotion: false,
+  },
+
+  // Webpack optimizations
+  webpack: (config, { isServer, dev }) => {
+    // Production optimizations
+    if (!dev && !isServer) {
+      // Tree shaking and dead code elimination
+      config.optimization = {
+        ...config.optimization,
+        usedExports: true,
+        sideEffects: false,
+      }
+    }
+    return config
   },
   async headers() {
     return [

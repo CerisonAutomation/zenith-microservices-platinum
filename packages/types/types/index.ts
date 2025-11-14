@@ -14,6 +14,26 @@ export type NotificationInsert = Database['public']['Tables']['notifications']['
 export type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 export type NotificationUpdate = Database['public']['Tables']['notifications']['Update'];
 
+// Schedule time slot type
+export interface TimeSlot {
+  day: string;
+  startTime: string;
+  endTime: string;
+  available: boolean;
+}
+
+// Booking preferences type
+export interface BookingPreferences {
+  duration?: number;
+  priceRange?: [number, number];
+  location?: string;
+  outcall?: boolean;
+  incall?: boolean;
+  verification?: boolean;
+  deposit?: boolean;
+  advanceBooking?: number;
+}
+
 // Extended types for frontend use
 export interface ExtendedProfile {
   id: string;
@@ -41,7 +61,7 @@ export interface ExtendedProfile {
   } | null;
   availability?: {
     meetNow?: boolean;
-    schedule?: any[];
+    schedule?: TimeSlot[];
     weekdays?: string[];
     weekends?: boolean;
   };
@@ -70,7 +90,7 @@ export interface ExtendedProfile {
     lookingFor?: string[];
     kinks?: string[];
     roles?: string[];
-    bookingPreferences?: any;
+    bookingPreferences?: BookingPreferences;
     tribes?: string[];
   };
 }
@@ -101,7 +121,7 @@ export interface Booking {
   createdAt?: Date;
   kinks?: string[];
   roles?: string[];
-  bookingPreferences?: any;
+  bookingPreferences?: BookingPreferences;
 }
 
 export interface ExtendedNotification extends Omit<Notification, 'created_at' | 'is_read'> {

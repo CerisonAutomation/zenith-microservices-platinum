@@ -1,10 +1,10 @@
 import { Camera, Edit, Settings, MapPin, Cake, Ruler, Heart, Crown, Shield, Image as ImageIcon, CheckCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage, Button, Badge, Card } from "@zenith/ui-components";
-import { useState, useCallback } from "react";
+import { useState, useCallback, memo } from "react";
 import PhotoManager from "../photo/PhotoManager";
 import SubscriptionDialog from "../subscription/SubscriptionDialog";
 
-export default function ProfileTab() {
+const ProfileTab = memo(function ProfileTab() {
   const [photoManagerOpen, setPhotoManagerOpen] = useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [photos, setPhotos] = useState<string[]>([
@@ -264,4 +264,6 @@ export default function ProfileTab() {
       />
     </div>
   );
-}
+});
+
+export default ProfileTab;

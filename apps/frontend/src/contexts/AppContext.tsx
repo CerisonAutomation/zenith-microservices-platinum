@@ -10,7 +10,7 @@
 
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import {
   supabase,
@@ -38,7 +38,12 @@ interface Profile {
   interests: string[];
   isPremium: boolean;
   verified: boolean;
-  [key: string]: any;
+  createdAt?: string;
+  updatedAt?: string;
+  distance?: string;
+  online?: boolean;
+  photo?: string;
+  photos?: string[];
 }
 
 interface Notification {
@@ -49,7 +54,8 @@ interface Notification {
   timestamp: string;
   read: boolean;
   avatar?: string;
-  [key: string]: any;
+  userId?: string;
+  link?: string;
 }
 
 interface AppContextType {
@@ -84,9 +90,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!configured) {
           // Demo mode: use mock data
           console.log('🎭 AppContext: Using mock data in demo mode');
-          setCurrentProfile(mockUser as any);
-          setProfiles(mockProfiles as any);
-          setNotifications(mockNotifications as any);
+          setCurrentProfile(mockUser as Profile);
+          setProfiles(mockProfiles as Profile[]);
+          setNotifications(mockNotifications as Notification[]);
         } else {
           // Production mode: load from backend
           console.log('🔐 AppContext: Loading data from backend');
@@ -133,7 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Error loading profile:', error);
       // Fallback to mock data on error
       console.log('Falling back to mock profile data');
-      setCurrentProfile(mockUser as any);
+      setCurrentProfile(mockUser as Profile);
     }
   };
 
@@ -152,7 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Error loading profiles:', error);
       // Fallback to mock data on error
       console.log('Falling back to mock profiles data');
-      setProfiles(mockProfiles as any);
+      setProfiles(mockProfiles as Profile[]);
     }
   };
 
@@ -180,23 +186,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Error loading notifications:', error);
       // Fallback to mock data on error
       console.log('Falling back to mock notifications data');
-      setNotifications(mockNotifications as any);
+      setNotifications(mockNotifications as Notification[]);
     }
   };
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (!isDemoMode) {
       await loadUserProfile();
     }
-  };
+  }, [isDemoMode]);
 
-  const refreshProfiles = async () => {
+  const refreshProfiles = useCallback(async () => {
     if (!isDemoMode) {
       await loadProfiles();
     }
-  };
+  }, [isDemoMode]);
 
-  const updateProfile = async (updates: Partial<Profile>) => {
+  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!user || !currentProfile) return;
 
     if (isDemoMode) {
@@ -226,9 +232,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Error updating profile:', error);
       throw error;
     }
-  };
+  }, [user, currentProfile, isDemoMode]);
 
-  const markNotificationAsRead = async (id: string) => {
+  const markNotificationAsRead = useCallback(async (id: string) => {
     setNotifications((prev) =>
       prev.map((notif) =>
         notif.id === id ? { ...notif, read: true } : notif
@@ -242,9 +248,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error('Error marking notification as read:', error);
       }
     }
-  };
+  }, [isDemoMode]);
 
-  const markAllNotificationsAsRead = async () => {
+  const markAllNotificationsAsRead = useCallback(async () => {
     setNotifications((prev) =>
       prev.map((notif) => ({ ...notif, read: true }))
     );
@@ -256,11 +262,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error('Error marking all notifications as read:', error);
       }
     }
-  };
+  }, [isDemoMode, user]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
-  const value = {
+  const value = useMemo(() => ({
     currentProfile,
     profiles,
     notifications,
@@ -271,7 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshProfile,
     refreshProfiles,
     updateProfile,
-  };
+  }), [currentProfile, profiles, notifications, unreadCount, isDemoMode, markNotificationAsRead, markAllNotificationsAsRead, refreshProfile, refreshProfiles, updateProfile]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

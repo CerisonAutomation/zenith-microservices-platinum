@@ -158,7 +158,7 @@ export const DATING_APP_CONFIG = {
     { id: 'scam', label: 'Scam or Fraud', severity: 'high' },
     { id: 'no_show', label: 'No Show (Booking)', severity: 'medium' },
     { id: 'inappropriate_behavior', label: 'Inappropriate Behavior', severity: 'high' },
-  },
+  ],
 
   // Ban Durations (in days)
   banDurations: {

@@ -36,6 +36,15 @@ class APIClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    // Check network connectivity first
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      throw new APIError(
+        'No internet connection. Please check your network.',
+        0,
+        { offline: true }
+      )
+    }
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -52,23 +61,56 @@ class APIClient {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, config)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30s timeout
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        ...config,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
+        let error: any = {}
+        try {
+          error = await response.json()
+        } catch {
+          error = { message: response.statusText }
+        }
+
         throw new APIError(
-          error.message || 'Request failed',
+          error.message || error.error || 'Request failed',
           response.status,
           error
         )
       }
 
-      return await response.json()
-    } catch (error) {
+      // Handle empty responses
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json()
+      }
+
+      return {} as T
+    } catch (error: any) {
       if (error instanceof APIError) {
         throw error
       }
-      throw new APIError('Network error', 500, error)
+
+      // Handle fetch abort
+      if (error.name === 'AbortError') {
+        throw new APIError('Request timeout', 408, { timeout: true })
+      }
+
+      // Handle network errors
+      if (error.message?.includes('Failed to fetch') || !navigator.onLine) {
+        throw new APIError('Network error. Please check your connection.', 0, {
+          network: true,
+        })
+      }
+
+      throw new APIError('An unexpected error occurred', 500, error)
     }
   }
 

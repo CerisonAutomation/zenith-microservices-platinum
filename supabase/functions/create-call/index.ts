@@ -4,16 +4,17 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+// SECURITY FIX #3: Import secure CORS configuration
+import { getCorsHeaders, handleCors } from '../_shared/cors.ts'
+// SECURITY FIX #8: Import rate limiting
+import { applyRateLimit, rateLimits, getIdentifier } from '../_shared/rate-limit.ts'
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  // SECURITY FIX #3: Handle CORS with origin validation
+  const corsResponse = handleCors(req)
+  if (corsResponse) return corsResponse
+
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'))
 
   try {
     // Create Supabase client with user's auth
@@ -35,6 +36,15 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    // SECURITY FIX #8: Apply rate limiting for video call creation
+    const rateLimitResponse = await applyRateLimit(
+      req,
+      rateLimits.videoCalls.maxRequests,
+      rateLimits.videoCalls.windowMs,
+      user.id
+    )
+    if (rateLimitResponse) return rateLimitResponse
 
     // Parse request body
     const { receiver_id, conversation_id, type } = await req.json()

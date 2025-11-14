@@ -129,7 +129,7 @@ export interface UserPreferences {
   };
 }
 
-export interface Boyfriend Availability {
+export interface BoyfriendAvailability {
   hourlyRate?: number;
   currency: string;
   availableDays: ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')[];

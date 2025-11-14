@@ -1,9 +1,14 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// SECURITY FIX #3: Import secure CORS configuration
+import { getCorsHeaders, handleCors } from '../_shared/cors.ts';
+// SECURITY FIX #8: Import rate limiting
+import { applyRateLimit, rateLimits } from '../_shared/rate-limit.ts';
+
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 
 type ContentType = 'message' | 'bio' | 'photo' | 'profile';
 type ActionType = 'allow' | 'warn' | 'block' | 'review';
@@ -19,22 +24,72 @@ interface ModerationResult {
 }
 
 serve(async (req) => {
+  // SECURITY FIX #3: Handle CORS with origin validation
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
   try {
     if (req.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const { content, contentType, userId, contentId } = await req.json();
+    // SECURITY FIX #10: Input validation with proper error handling
+    let body;
+    try {
+      body = await req.json();
+    } catch (error) {
+      return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
+    const { content, contentType, userId, contentId } = body;
+
+    // SECURITY FIX #8: Apply rate limiting for AI moderation (expensive operation)
+    if (userId) {
+      const rateLimitResponse = await applyRateLimit(
+        req,
+        rateLimits.ai.maxRequests,
+        rateLimits.ai.windowMs,
+        userId
+      );
+      if (rateLimitResponse) return rateLimitResponse;
+    }
+
+    // SECURITY FIX #10: Validate required fields and types
     if (!content || !contentType) {
       return new Response(
         JSON.stringify({ error: 'content and contentType are required' }),
         {
           status: 400,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    if (typeof content !== 'string' || content.length > 10000) {
+      return new Response(
+        JSON.stringify({ error: 'content must be a string with max 10000 characters' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const validContentTypes = ['message', 'bio', 'photo', 'profile'];
+    if (!validContentTypes.includes(contentType)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid contentType. Must be one of: message, bio, photo, profile' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -44,7 +99,7 @@ serve(async (req) => {
 
     // Log moderation result
     if (userId) {
-      const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
       await supabase.from('ai_moderation_log').insert({
         content_type: contentType,
         content_id: contentId,
@@ -58,15 +113,21 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify(result), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
+    // SECURITY FIX #12: Don't expose stack traces in production
     console.error('Error in ai-moderate-content:', error);
+
+    const safeErrorMessage = Deno.env.get('DENO_ENV') === 'production'
+      ? 'An error occurred during content moderation'
+      : (error?.message || 'Internal server error');
+
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({ error: safeErrorMessage }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

@@ -285,22 +285,28 @@ export function AuthFlow() {
               variant="outline"
               onClick={() => handleOAuthSignIn('google')}
               disabled={loading}
+              aria-label="Sign in with Google"
             >
-              <Chrome className="h-4 w-4" />
+              <Chrome className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Google</span>
             </Button>
             <Button
               variant="outline"
               onClick={() => handleOAuthSignIn('facebook')}
               disabled={loading}
+              aria-label="Sign in with Facebook"
             >
-              <Facebook className="h-4 w-4" />
+              <Facebook className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Facebook</span>
             </Button>
             <Button
               variant="outline"
               onClick={() => handleOAuthSignIn('apple')}
               disabled={loading}
+              aria-label="Sign in with Apple"
             >
-              <Apple className="h-4 w-4" />
+              <Apple className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Apple</span>
             </Button>
           </div>
         </CardContent>

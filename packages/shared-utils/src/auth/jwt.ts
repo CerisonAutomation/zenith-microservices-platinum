@@ -9,6 +9,15 @@ export interface JWTPayload {
   exp?: number;
 }
 
+// Extend Express Request type to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JWTPayload;
+    }
+  }
+}
+
 export enum UserRole {
   ADMIN = 'admin',
   PREMIUM = 'premium',
@@ -49,7 +58,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     }
 
     const decoded = JWTAuth.verifyToken(token);
-    (req as any).user = decoded;
+    req.user = decoded;
     next();
   } catch (error) {
     return res.status(403).json({ error: 'Invalid token' });
@@ -58,7 +67,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 
 export const requireRole = (requiredRole: UserRole) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user as JWTPayload;
+    const user = req.user;
 
     if (!user) {
       return res.status(401).json({ error: 'Authentication required' });

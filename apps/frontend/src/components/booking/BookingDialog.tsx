@@ -2,7 +2,8 @@ import { Calendar, Clock, MapPin, Coffee, Utensils, Wine, Activity, Video, Phone
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Badge, Card, Label } from "@zenith/ui-components";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { useState } from "react";
+import { useState, useCallback, memo, useMemo } from "react";
+import Image from "next/image";
 import { format, addDays } from "date-fns";
 
 interface BookingDialogProps {
@@ -32,11 +33,11 @@ const meetingTypes = [
 ];
 
 const timeSlots = [
-  "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", 
+  "09:00", "10:00", "11:00", "12:00", "13:00", "14:00",
   "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"
 ];
 
-export default function BookingDialog({ 
+const BookingDialog = memo(function BookingDialog({ 
   open, 
   onOpenChange, 
   profileName, 
@@ -54,30 +55,49 @@ export default function BookingDialog({
   const [selectedKinks, setSelectedKinks] = useState<string[]>(profileKinks);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(profileRoles);
 
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i));
+  const dates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(new Date(), i)), []);
 
-  const handleBooking = () => {
+  const handleBooking = useCallback(() => {
     // Handle booking logic
-
-      selectedType, 
-      selectedDate, 
-      selectedTime, 
-      location, 
-      notes, 
+    console.log({
+      selectedType,
+      selectedDate,
+      selectedTime,
+      location,
+      notes,
       meetNow,
       kinks: selectedKinks,
       roles: selectedRoles,
       bookingPreferences: profileBookingPreferences
     });
     onOpenChange(false);
-  };
+  }, [selectedType, selectedDate, selectedTime, location, notes, meetNow, selectedKinks, selectedRoles, profileBookingPreferences, onOpenChange]);
+
+  const handleMeetNow = useCallback(() => setMeetNow(true), []);
+  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value), []);
+  const handleToggleKink = useCallback((kink: string) => {
+    setSelectedKinks(prev =>
+      prev.includes(kink)
+        ? prev.filter(k => k !== kink)
+        : [...prev, kink]
+    );
+  }, []);
+  const handleToggleRole = useCallback((role: string) => {
+    setSelectedRoles(prev =>
+      prev.includes(role)
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
+    );
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-gradient-to-br from-purple-900/95 via-black/95 to-pink-900/95 backdrop-blur-xl border-white/10 text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-            <img src={profilePhoto} alt={profileName} className="w-12 h-12 rounded-full border-2 border-white/20" />
+            <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/20">
+              <Image src={profilePhoto} alt={profileName} fill className="object-cover" sizes="48px" />
+            </div>
             Book a Meet with {profileName}
           </DialogTitle>
         </DialogHeader>
@@ -94,8 +114,9 @@ export default function BookingDialog({
                 </div>
               </div>
               <Button
-                onClick={() => setMeetNow(true)}
+                onClick={handleMeetNow}
                 className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                aria-label={`Schedule immediate meeting with ${profileName} within the next hour`}
               >
                 Meet Now
               </Button>
@@ -103,61 +124,86 @@ export default function BookingDialog({
           </Card>
 
           {/* Meeting Type */}
-          <div className="space-y-3">
-            <Label className="text-base">Meeting Type</Label>
-            <div className="grid grid-cols-3 gap-3">
+          <fieldset className="space-y-3">
+            <legend className="text-base font-medium">Meeting Type</legend>
+            <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Select meeting type">
               {meetingTypes.map((type) => {
                 const Icon = type.icon;
+                const isSelected = selectedType === type.id;
                 return (
                   <Card
                     key={type.id}
                     onClick={() => setSelectedType(type.id)}
                     className={`p-4 cursor-pointer transition-all ${
-                      selectedType === type.id
+                      isSelected
                         ? "bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-500"
                         : "bg-white/5 border-white/10 hover:bg-white/10"
                     }`}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={type.label}
+                    tabIndex={0}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedType(type.id);
+                      }
+                    }}
                   >
-                    <Icon className="w-6 h-6 mb-2 mx-auto" />
+                    <Icon className="w-6 h-6 mb-2 mx-auto" aria-hidden="true" />
                     <p className="text-sm text-center">{type.label}</p>
                   </Card>
                 );
               })}
             </div>
-          </div>
+          </fieldset>
 
           {/* Date Selection */}
-          <div className="space-y-3">
-            <Label className="text-base flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
+          <fieldset className="space-y-3">
+            <legend className="text-base font-medium flex items-center gap-2">
+              <Calendar className="w-4 h-4" aria-hidden="true" />
               Select Date
-            </Label>
-            <div className="grid grid-cols-7 gap-2">
-              {dates.map((date) => (
-                <Card
-                  key={date.toISOString()}
-                  onClick={() => setSelectedDate(date)}
-                  className={`p-3 cursor-pointer transition-all text-center ${
-                    selectedDate.toDateString() === date.toDateString()
-                      ? "bg-gradient-to-r from-purple-500 to-pink-500 border-0"
-                      : "bg-white/5 border-white/10 hover:bg-white/10"
-                  }`}
-                >
-                  <div className="text-xs text-gray-400">{format(date, "EEE")}</div>
-                  <div className="text-lg font-bold">{format(date, "d")}</div>
-                </Card>
-              ))}
+            </legend>
+            <div className="grid grid-cols-7 gap-2" role="radiogroup" aria-label="Select meeting date">
+              {dates.map((date) => {
+                const isSelected = selectedDate.toDateString() === date.toDateString();
+                const dateLabel = format(date, "EEEE, MMMM d, yyyy");
+                return (
+                  <Card
+                    key={date.toISOString()}
+                    onClick={() => setSelectedDate(date)}
+                    className={`p-3 cursor-pointer transition-all text-center ${
+                      isSelected
+                        ? "bg-gradient-to-r from-purple-500 to-pink-500 border-0"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                    }`}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={dateLabel}
+                    tabIndex={0}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedDate(date);
+                      }
+                    }}
+                  >
+                    <div className="text-xs text-gray-400" aria-hidden="true">{format(date, "EEE")}</div>
+                    <div className="text-lg font-bold" aria-hidden="true">{format(date, "d")}</div>
+                  </Card>
+                );
+              })}
             </div>
-          </div>
+          </fieldset>
 
           {/* Time Selection */}
           <div className="space-y-3">
-            <Label className="text-base flex items-center gap-2">
-              <Clock className="w-4 h-4" />
+            <Label htmlFor="time-select" className="text-base flex items-center gap-2">
+              <Clock className="w-4 h-4" aria-hidden="true" />
               Select Time
             </Label>
             <Select value={selectedTime} onValueChange={setSelectedTime}>
-              <SelectTrigger className="bg-white/10 border-white/20">
+              <SelectTrigger id="time-select" className="bg-white/10 border-white/20" aria-label="Select meeting time">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-black/95 border-white/20">
@@ -172,12 +218,12 @@ export default function BookingDialog({
 
           {/* Location */}
           <div className="space-y-3">
-            <Label className="text-base flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
+            <Label htmlFor="location-select" className="text-base flex items-center gap-2">
+              <MapPin className="w-4 h-4" aria-hidden="true" />
               Location (Optional)
             </Label>
             <Select value={location} onValueChange={setLocation}>
-              <SelectTrigger className="bg-white/10 border-white/20">
+              <SelectTrigger id="location-select" className="bg-white/10 border-white/20" aria-label="Select meeting location">
                 <SelectValue placeholder="Choose a location or suggest one" />
               </SelectTrigger>
               <SelectContent className="bg-black/95 border-white/20">
@@ -195,18 +241,12 @@ export default function BookingDialog({
             <div className="space-y-3">
               <Label className="text-base">Kinks & Preferences</Label>
               <div className="flex flex-wrap gap-2">
-                {profileKinks.map((kink) => (
-                  <Badge 
-                    key={kink}
+                {profileKinks.map((kink, idx) => (
+                  <Badge
+                    key={`kink-${idx}`}
                     variant={selectedKinks.includes(kink) ? "default" : "outline"}
                     className="cursor-pointer bg-purple-500/20 border-purple-500/30 hover:bg-purple-500/30"
-                    onClick={() => {
-                      setSelectedKinks(prev => 
-                        prev.includes(kink) 
-                          ? prev.filter(k => k !== kink)
-                          : [...prev, kink]
-                      );
-                    }}
+                    onClick={() => handleToggleKink(kink)}
                   >
                     {kink}
                   </Badge>
@@ -219,18 +259,12 @@ export default function BookingDialog({
             <div className="space-y-3">
               <Label className="text-base">Roles & Dynamics</Label>
               <div className="flex flex-wrap gap-2">
-                {profileRoles.map((role) => (
-                  <Badge 
-                    key={role}
+                {profileRoles.map((role, idx) => (
+                  <Badge
+                    key={`role-${idx}`}
                     variant={selectedRoles.includes(role) ? "default" : "outline"}
                     className="cursor-pointer bg-pink-500/20 border-pink-500/30 hover:bg-pink-500/30"
-                    onClick={() => {
-                      setSelectedRoles(prev => 
-                        prev.includes(role) 
-                          ? prev.filter(r => r !== role)
-                          : [...prev, role]
-                      );
-                    }}
+                    onClick={() => handleToggleRole(role)}
                   >
                     {role}
                   </Badge>
@@ -268,12 +302,14 @@ export default function BookingDialog({
 
           {/* Notes */}
           <div className="space-y-3">
-            <Label className="text-base">Additional Notes</Label>
+            <Label htmlFor="booking-notes" className="text-base">Additional Notes</Label>
             <Textarea
+              id="booking-notes"
               placeholder="Any special requests or preferences..."
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={handleNotesChange}
               className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 min-h-[100px]"
+              aria-label="Additional notes or special requests for the meeting"
             />
           </div>
 
@@ -304,4 +340,6 @@ export default function BookingDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+export default BookingDialog;

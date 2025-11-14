@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+'use client';
+
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { SlidersHorizontal, MapPin, Zap, TrendingUp, Loader2 } from "lucide-react";
 import ProfileCard from "../profile/ProfileCard";
@@ -6,7 +8,7 @@ import FilterDialog from "../filters/FilterDialog";
 import { Button, Badge } from "@zenith/ui-components";
 import { useApp } from "@/contexts/AppContext";
 
-export default function ExploreTab() {
+const ExploreTab = memo(function ExploreTab() {
   const { profiles, isDemoMode, refreshProfiles } = useApp();
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"all" | "meetNow" | "trending">("all");
@@ -63,7 +65,12 @@ export default function ExploreTab() {
     return true;
   });
 
-  const meetNowCount = displayProfiles.filter(p => p.meetNow).length;
+  const meetNowCount = useMemo(() => displayProfiles.filter(p => p.meetNow).length, [displayProfiles]);
+
+  const handleOpenFilter = useCallback(() => setFilterOpen(true), []);
+  const handleSetViewAll = useCallback(() => setViewMode("all"), []);
+  const handleSetViewMeetNow = useCallback(() => setViewMode("meetNow"), []);
+  const handleSetViewTrending = useCallback(() => setViewMode("trending"), []);
 
   return (
     <div className="min-h-screen">
@@ -75,7 +82,7 @@ export default function ExploreTab() {
               Discover
             </h1>
             <Button
-              onClick={() => setFilterOpen(true)}
+              onClick={handleOpenFilter}
               variant="ghost"
               size="icon"
               className="rounded-full bg-white/10 hover:bg-white/20"
@@ -99,7 +106,7 @@ export default function ExploreTab() {
           {/* View Mode Filters */}
           <div className="flex gap-2">
             <Badge
-              onClick={() => setViewMode("all")}
+              onClick={handleSetViewAll}
               className={`cursor-pointer ${
                 viewMode === "all"
                   ? "bg-gradient-to-r from-purple-500 to-pink-500 border-0"
@@ -109,7 +116,7 @@ export default function ExploreTab() {
               All
             </Badge>
             <Badge
-              onClick={() => setViewMode("meetNow")}
+              onClick={handleSetViewMeetNow}
               className={`cursor-pointer ${
                 viewMode === "meetNow"
                   ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0"
@@ -120,7 +127,7 @@ export default function ExploreTab() {
               Meet Now
             </Badge>
             <Badge
-              onClick={() => setViewMode("trending")}
+              onClick={handleSetViewTrending}
               className={`cursor-pointer ${
                 viewMode === "trending"
                   ? "bg-gradient-to-r from-orange-500 to-red-500 border-0"
@@ -164,7 +171,7 @@ export default function ExploreTab() {
               <div className="text-center py-20">
                 <p className="text-gray-400">No profiles match your filters</p>
                 <Button
-                  onClick={() => setViewMode("all")}
+                  onClick={handleSetViewAll}
                   variant="outline"
                   className="mt-4 border-white/20 hover:bg-white/10"
                 >
@@ -179,4 +186,6 @@ export default function ExploreTab() {
       <FilterDialog open={filterOpen} onOpenChange={setFilterOpen} />
     </div>
   );
-}
+});
+
+export default ExploreTab;

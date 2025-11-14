@@ -383,10 +383,20 @@ export const platinumTokens = {
   }
 }
 
+// Type guard for font size value
+type FontSizeValue = string | [string, { lineHeight: string }];
+
+const getFontSizeString = (value: FontSizeValue): string => {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+  return value;
+};
+
 // Export CSS custom properties generator
 export const generateCSSVariables = (tokens: typeof platinumTokens) => {
   const cssVars: Record<string, string> = {}
-  
+
   // Generate color variables
   Object.entries(tokens.colors).forEach(([colorName, colorValues]) => {
     if (typeof colorValues === 'object' && colorValues !== null) {
@@ -397,27 +407,27 @@ export const generateCSSVariables = (tokens: typeof platinumTokens) => {
       cssVars[`--color-${colorName}`] = colorValues as string
     }
   })
-  
+
   // Generate spacing variables
   Object.entries(tokens.spacing).forEach(([key, value]) => {
     cssVars[`--spacing-${key}`] = value
   })
-  
+
   // Generate typography variables
   Object.entries(tokens.typography.fontSize).forEach(([key, value]) => {
-    cssVars[`--font-size-${key}`] = Array.isArray(value) ? value[0] : (typeof value === 'string' ? value : (typeof value === 'object' && 'lineHeight' in value ? (value as any).lineHeight : String(value)))
+    cssVars[`--font-size-${key}`] = getFontSizeString(value as FontSizeValue)
   })
-  
+
   // Generate border radius variables
   Object.entries(tokens.borderRadius).forEach(([key, value]) => {
     cssVars[`--radius-${key}`] = value
   })
-  
+
   // Generate shadow variables
   Object.entries(tokens.boxShadow).forEach(([key, value]) => {
     cssVars[`--shadow-${key}`] = value
   })
-  
+
   return cssVars
 }
 
