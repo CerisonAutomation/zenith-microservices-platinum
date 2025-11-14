@@ -1,9 +1,7 @@
 'use client'
 
 import { Upload, X, Camera, Image as ImageIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Button } from "../ui/button";
-import { Card } from "../ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Card } from "@zenith/ui-components";
 import { useState, useRef } from "react";
 import { motion, Reorder } from "framer-motion";
 
