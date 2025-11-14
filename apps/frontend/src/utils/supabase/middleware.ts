@@ -38,12 +38,21 @@ export async function updateSession(request: NextRequest) {
         return request.cookies.get(name)?.value
       },
       set(name: string, value: string, options: CookieOptions) {
+        // SECURITY FIX #15: Ensure cookies have proper security flags
+        const secureOptions = {
+          ...options,
+          httpOnly: true, // SECURITY: Prevent JavaScript access to prevent XSS
+          secure: process.env.NODE_ENV === 'production', // SECURITY: Only send over HTTPS in production
+          sameSite: 'lax' as const, // SECURITY: CSRF protection
+        }
+
         // Set cookie in request for subsequent middleware/route handlers
         request.cookies.set({
           name,
           value,
-          ...options,
+          ...secureOptions,
         })
+
         // Also set in response so browser receives the cookie
         response = NextResponse.next({
           request: {
@@ -53,7 +62,7 @@ export async function updateSession(request: NextRequest) {
         response.cookies.set({
           name,
           value,
-          ...options,
+          ...secureOptions,
         })
       },
       remove(name: string, options: CookieOptions) {
@@ -84,19 +93,21 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Optionally protect routes - uncomment to enable auth protection
-  // const protectedRoutes = ['/profile', '/messages', '/favorites', '/wallet']
-  // const isProtectedRoute = protectedRoutes.some((route) =>
-  //   request.nextUrl.pathname.startsWith(route)
-  // )
+  // SECURITY FIX #2: Route protection enabled to prevent unauthorized access
+  // Protect sensitive routes that require authentication
+  const protectedRoutes = ['/profile', '/messages', '/favorites', '/wallet']
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    request.nextUrl.pathname.startsWith(route)
+  )
 
-  // if (isProtectedRoute && !user) {
-  //   // Redirect to login if trying to access protected route without auth
-  //   const redirectUrl = request.nextUrl.clone()
-  //   redirectUrl.pathname = '/auth/login'
-  //   redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
-  //   return NextResponse.redirect(redirectUrl)
-  // }
+  if (isProtectedRoute && !user) {
+    // SECURITY: Redirect unauthenticated users to login
+    // Preserve the intended destination for post-login redirect
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/auth/login'
+    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
 
   return response
 }

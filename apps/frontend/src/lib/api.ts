@@ -9,27 +9,27 @@ const I18N_SERVICE_URL = process.env.NEXT_PUBLIC_I18N_SERVICE_URL || 'http://loc
 // API Client class with authentication and error handling
 class APIClient {
   private baseUrl: string
-  private token: string | null = null
+  // SECURITY FIX #1: Removed token storage - using httpOnly cookies instead
+  // Tokens are now managed by Supabase in secure httpOnly cookies
+  // This prevents XSS attacks from accessing authentication tokens
 
   constructor(baseUrl: string = API_GATEWAY_URL) {
     this.baseUrl = baseUrl
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('zenith-auth-token')
-    }
+    // SECURITY: No longer reading tokens from localStorage (XSS vulnerability)
   }
 
+  // SECURITY FIX #1: Token management methods kept for backward compatibility
+  // but now they're no-ops. Tokens are managed via httpOnly cookies by Supabase.
   setToken(token: string) {
-    this.token = token
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('zenith-auth-token', token)
-    }
+    // No-op: Tokens are now in httpOnly cookies set by the server
+    // This method is kept for API compatibility but does nothing
+    console.warn('Token management is now handled via httpOnly cookies')
   }
 
   clearToken() {
-    this.token = null
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('zenith-auth-token')
-    }
+    // No-op: Tokens are now in httpOnly cookies cleared by the server
+    // This method is kept for API compatibility but does nothing
+    console.warn('Token clearing is now handled via httpOnly cookies')
   }
 
   private async request<T>(
@@ -41,13 +41,14 @@ class APIClient {
       ...options.headers,
     }
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`
-    }
+    // SECURITY FIX #1: No manual Authorization header needed
+    // Authentication is handled via httpOnly cookies sent automatically
+    // The browser will include credentials (cookies) with each request
 
     const config: RequestInit = {
       ...options,
       headers,
+      credentials: 'include', // SECURITY: Always include cookies for auth
     }
 
     try {
@@ -183,12 +184,12 @@ export const userService = {
     const formData = new FormData()
     formData.append('photo', file)
 
+    // SECURITY FIX #1: Removed direct token access - use httpOnly cookies
     return fetch(`${DATA_SERVICE_URL}/users/me/photos`, {
       method: 'POST',
       body: formData,
-      headers: {
-        Authorization: `Bearer ${authAPI['token']}`,
-      },
+      credentials: 'include', // SECURITY: Include httpOnly cookies for auth
+      // No Authorization header needed - handled via cookies
     }).then((res) => res.json())
   },
 
@@ -423,12 +424,12 @@ export const safetyService = {
     const formData = new FormData()
     formData.append('photo', file)
 
+    // SECURITY FIX #1: Removed direct token access - use httpOnly cookies
     return fetch(`${API_GATEWAY_URL}/safety/verification/photo`, {
       method: 'POST',
       body: formData,
-      headers: {
-        Authorization: `Bearer ${api['token']}`,
-      },
+      credentials: 'include', // SECURITY: Include httpOnly cookies for auth
+      // No Authorization header needed - handled via cookies
     }).then((res) => res.json())
   },
 

@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
 
   // Handle errors from Supabase (e.g., user cancelled OAuth)
   if (error) {
-    console.error('Auth callback error:', error, errorDescription)
+    // SECURITY FIX #9: Don't log error details (may contain tokens/codes)
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Auth callback error occurred')
+    }
     return NextResponse.redirect(
       new URL(`/auth/error?error=${encodeURIComponent(error)}&description=${encodeURIComponent(errorDescription || '')}`, requestUrl.origin)
     )
@@ -42,7 +45,10 @@ export async function GET(request: NextRequest) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
     if (exchangeError) {
-      console.error('Error exchanging code for session:', exchangeError)
+      // SECURITY FIX #9: Don't log session exchange errors (contain auth codes)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error exchanging code for session')
+      }
       return NextResponse.redirect(
         new URL(`/auth/error?error=${encodeURIComponent(exchangeError.message)}`, requestUrl.origin)
       )

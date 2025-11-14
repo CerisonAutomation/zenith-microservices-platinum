@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { SlidersHorizontal, MapPin, Zap, TrendingUp, Loader2 } from "lucide-react";
 import ProfileCard from "../profile/ProfileCard";
@@ -27,22 +27,35 @@ export default function ExploreTab() {
     loadProfiles();
   }, [isDemoMode, refreshProfiles]);
 
-  // Map profile data to expected format for ProfileCard
-  const displayProfiles = profiles.map(profile => ({
-    id: profile.id,
-    name: profile.name,
-    age: profile.age,
-    distance: profile.distance || `${Math.random() * 5 + 0.5}`.slice(0, 3) + " km",
-    online: Math.random() > 0.5,
-    photo: profile.avatar || profile.photo,
-    photos: profile.photos || [profile.avatar],
-    bio: profile.bio || "",
-    verified: profile.verified || false,
-    meetNow: Math.random() > 0.7,
-    videoVerified: profile.verified || false,
-    responseRate: profile.matchScore || Math.floor(Math.random() * 30 + 70),
-    lastActive: "Recently",
-  }));
+  // Generate stable random values based on profile ID to prevent infinite re-renders
+  const getStableRandom = (id: string, seed: number) => {
+    let hash = 0;
+    const str = id + seed;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash = hash & hash;
+    }
+    return Math.abs(hash % 100) / 100;
+  };
+
+  // Map profile data to expected format for ProfileCard - memoized to prevent re-renders
+  const displayProfiles = useMemo(() => {
+    return profiles.map(profile => ({
+      id: profile.id,
+      name: profile.name,
+      age: profile.age,
+      distance: profile.distance || `${getStableRandom(profile.id, 1) * 5 + 0.5}`.slice(0, 3) + " km",
+      online: getStableRandom(profile.id, 2) > 0.5,
+      photo: profile.avatar || profile.photo,
+      photos: profile.photos || [profile.avatar],
+      bio: profile.bio || "",
+      verified: profile.verified || false,
+      meetNow: getStableRandom(profile.id, 3) > 0.7,
+      videoVerified: profile.verified || false,
+      responseRate: profile.matchScore || Math.floor(getStableRandom(profile.id, 4) * 30 + 70),
+      lastActive: "Recently",
+    }));
+  }, [profiles]);
 
   const filteredProfiles = displayProfiles.filter(profile => {
     if (viewMode === "meetNow") return profile.meetNow;

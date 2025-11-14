@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Search, MoreVertical } from "lucide-react";
 import { Input, Avatar, AvatarFallback, AvatarImage, Badge } from "@zenith/ui-components";
@@ -42,12 +42,24 @@ export default function MessagesTab() {
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleBackToList = useCallback(() => {
+    setSelectedChat(null);
+  }, []);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const handleSelectChat = useCallback((chatId: string) => {
+    setSelectedChat(chatId);
+  }, []);
+
   if (selectedChat) {
     const chat = mockChats.find(c => c.id === selectedChat);
     return chat ? (
       <ChatWindow
         chat={chat}
-        onBack={() => setSelectedChat(null)}
+        onBack={handleBackToList}
       />
     ) : null;
   }
@@ -66,7 +78,7 @@ export default function MessagesTab() {
             <Input
               placeholder="Search conversations..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
             />
           </div>
@@ -81,7 +93,7 @@ export default function MessagesTab() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
-            onClick={() => setSelectedChat(chat.id)}
+            onClick={() => handleSelectChat(chat.id)}
             className="px-4 py-4 hover:bg-white/5 cursor-pointer transition-colors"
           >
             <div className="flex items-center gap-4">

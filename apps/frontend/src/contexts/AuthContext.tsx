@@ -45,39 +45,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Check if Supabase is properly configured
       const configured = isSupabaseConfigured();
 
+      // SECURITY FIX #4: Prevent demo mode in production
+      const isProduction = process.env.NODE_ENV === 'production';
+      const isDevelopment = process.env.NODE_ENV === 'development';
+
       if (!configured) {
-        // 🎭 DEMO MODE - Skip Supabase auth, use mock user
-        console.log('🎭 Running in DEMO MODE with mock authentication');
-        console.log('💡 To enable production auth, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
+        // SECURITY: Only allow demo mode in development, not production
+        if (isProduction) {
+          console.error('❌ CRITICAL: Supabase not configured in production!');
+          console.error('Authentication is required but not properly set up.');
+          setLoading(false);
+          return; // Don't allow demo mode in production
+        }
 
-        const demoUser = {
-          id: mockUser.id,
-          email: mockUser.email,
-          created_at: mockUser.createdAt,
-          updated_at: mockUser.createdAt,
-          app_metadata: {},
-          user_metadata: {
-            name: mockUser.name,
-            avatar: mockUser.avatar,
-            isPremium: mockUser.isPremium,
-          },
-          aud: 'authenticated',
-          role: 'authenticated',
-        } as User;
+        // 🎭 DEMO MODE - Only in development
+        if (isDevelopment) {
+          console.log('🎭 Running in DEMO MODE with mock authentication (DEVELOPMENT ONLY)');
+          console.log('💡 To enable production auth, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
-        const demoSession = {
-          access_token: 'demo-token',
-          refresh_token: 'demo-refresh',
-          expires_in: 3600,
-          token_type: 'bearer',
-          user: demoUser,
-        } as Session;
+          // SECURITY: Use crypto-random tokens even in demo mode
+          const randomToken = () => {
+            const array = new Uint8Array(32);
+            if (typeof window !== 'undefined' && window.crypto) {
+              window.crypto.getRandomValues(array);
+              return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+            }
+            return `demo-${Date.now()}-${Math.random()}`;
+          };
 
-        setUser(demoUser);
-        setSession(demoSession);
-        setIsDemoMode(true);
-        setLoading(false);
-        return;
+          const demoUser = {
+            id: mockUser.id,
+            email: mockUser.email,
+            created_at: mockUser.createdAt,
+            updated_at: mockUser.createdAt,
+            app_metadata: {},
+            user_metadata: {
+              name: mockUser.name,
+              avatar: mockUser.avatar,
+              isPremium: mockUser.isPremium,
+            },
+            aud: 'authenticated',
+            role: 'authenticated',
+          } as User;
+
+          // SECURITY: Use random tokens instead of hardcoded values
+          const demoSession = {
+            access_token: randomToken(),
+            refresh_token: randomToken(),
+            expires_in: 3600,
+            token_type: 'bearer',
+            user: demoUser,
+          } as Session;
+
+          setUser(demoUser);
+          setSession(demoSession);
+          setIsDemoMode(true);
+          setLoading(false);
+          return;
+        }
       }
 
       // 🔐 PRODUCTION MODE - Use real Supabase authentication with SSR support
@@ -126,7 +151,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return () => subscription.unsubscribe();
       } catch (error) {
-        console.error('Failed to initialize auth:', error);
+        // SECURITY FIX #9: Don't log error objects that may contain tokens/sessions
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to initialize auth');
+        }
         setLoading(false);
       }
     };
@@ -135,8 +163,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleAuthError = (error: AuthError) => {
-    console.error('Auth error:', error);
-    
+    // SECURITY FIX #9: Don't log full error object (may contain sensitive data)
+    // Only log error message in development, nothing in production
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Auth error message:', error.message);
+    }
+
     const errorMessages: Record<string, string> = {
       'Invalid login credentials': 'Incorrect email or password',
       'Email not confirmed': 'Please verify your email address',
@@ -146,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     toast({
       variant: 'destructive',
       title: 'Authentication Error',
-      description: errorMessages[error.message] || error.message,
+      description: errorMessages[error.message] || 'An authentication error occurred',
     });
   };
 
@@ -410,13 +442,18 @@ export function useAuth() {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   // const navigate = useNavigate();
-  const devMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+
+  // SECURITY FIX #4: Removed NEXT_PUBLIC_DEV_MODE bypass
+  // This environment variable could be accidentally set in production
+  // Authentication is now always enforced when no user is present
 
   useEffect(() => {
-    if (!loading && !user && !devMode) {
+    if (!loading && !user) {
+      // SECURITY: Always redirect unauthenticated users
+      // No dev mode bypass that could be exploited
       // navigate('/auth/sign-in', { replace: true });
     }
-  }, [user, loading, devMode]);
+  }, [user, loading]);
 
   if (loading) {
     return (
@@ -429,11 +466,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
-  // In dev mode, always show content
-  if (devMode) {
-    return <>{children}</>;
-  }
-
+  // SECURITY: Only show content if user is authenticated
+  // No dev mode bypass
   return user ? <>{children}</> : null;
 }
 
